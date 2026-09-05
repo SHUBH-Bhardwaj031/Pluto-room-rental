@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+    import { useNavigate } from "react-router-dom";
 import {
   MapPin,
   IndianRupee,
@@ -88,7 +88,7 @@ const RoomCard = ({ room }) => {
 
         {room.images?.length > 0 ? (
           <img
-            src={`http://localhost:5000${room.images[0]}`}
+            src={`${import.meta.env.VITE_API_URL}${room.images[0]}`}
             alt={room.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />

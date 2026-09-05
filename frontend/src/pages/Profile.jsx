@@ -41,7 +41,7 @@ const Profile = () => {
       }
 
       const response = await axios.get(
-        "http://localhost:5000/api/rooms/my-posts",
+        "${import.meta.env.VITE_API_URL}/api/rooms/my-posts",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -73,7 +73,7 @@ const Profile = () => {
       const token = localStorage.getItem("plutoToken");
 
       await axios.delete(
-        `http://localhost:5000/api/rooms/${roomId}`,
+        `${import.meta.env.VITE_API_URL}/api/rooms/${roomId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -552,7 +552,7 @@ const Profile = () => {
 
                   {room.images?.length > 0 ? (
                     <img
-                      src={`http://localhost:5000${room.images[0]}`}
+                      src={`${import.meta.env.VITE_API_URL}${room.images[0]}`}
                       alt={room.title}
                       className="
                         w-full

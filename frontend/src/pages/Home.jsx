@@ -21,7 +21,7 @@ const Home = () => {
     const fetchRooms = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:5000/api/rooms"
+          "${import.meta.env.VITE_API_URL}/api/rooms"
         );
 
         setRooms(response.data.rooms.slice(0, 3));
@@ -329,7 +329,7 @@ const Home = () => {
                     {room.images?.length > 0 ? (
 
                       <img
-                        src={`http://localhost:5000${room.images[0]}`}
+                        src={`${import.meta.env.VITE_API_URL}${room.images[0]}`}
                         alt={room.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />

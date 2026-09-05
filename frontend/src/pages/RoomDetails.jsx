@@ -28,7 +28,7 @@ const RoomDetails = () => {
         setMessage("");
 
         const response = await axios.get(
-          `http://localhost:5000/api/rooms/${id}`
+          `${import.meta.env.VITE_API_URL}/api/rooms/${id}`
         );
 
         setRoom(response.data.room);
@@ -134,7 +134,7 @@ const RoomDetails = () => {
 
             {room.images?.length > 0 ? (
               <img
-                src={`http://localhost:5000${room.images[0]}`}
+                src={`${import.meta.env.VITE_API_URL}${room.images[0]}`}
                 alt={room.title}
                 className="w-full h-full object-cover"
               />

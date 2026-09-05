@@ -40,7 +40,7 @@ const EditRoom = () => {
     const fetchRoom = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:5000/api/rooms/${id}`
+          `${import.meta.env.VITE_API_URL}/api/rooms/${id}`
         );
 
         const room = response.data.room;
@@ -225,7 +225,7 @@ const EditRoom = () => {
       });
 
       await axios.put(
-        `http://localhost:5000/api/rooms/${id}`,
+        `${import.meta.env.VITE_API_URL}/api/rooms/${id}`,
         roomData,
         {
           headers: {
