@@ -1,28 +1,37 @@
 import Room from "../models/Room.js";
-import fs from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
+import cloudinary from "../config/cloudinary.js";
 
 /* =========================================================
-   HELPER
+   CLOUDINARY IMAGE DELETE HELPER
 ========================================================= */
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const deleteImageFile = async (imageUrl) => {
+const deleteCloudinaryImage = async (imageUrl) => {
   try {
     if (!imageUrl) return;
 
-    const filePath = path.join(
-      __dirname,
-      "..",
-      imageUrl.replace(/^\/+/, "")
-    );
+    // Old local uploads - nothing to delete from Cloudinary
+    if (!imageUrl.startsWith("http")) {
+      return;
+    }
 
-    await fs.unlink(filePath);
+    // Extract public_id from Cloudinary URL
+    const uploadIndex = imageUrl.indexOf("/upload/");
+
+    if (uploadIndex === -1) return;
+
+    let publicId = imageUrl.substring(uploadIndex + 8);
+
+    // Remove version e.g. v1234567890/
+    publicId = publicId.replace(/^v\d+\//, "");
+
+    // Remove file extension
+    publicId = publicId.replace(/\.[^/.]+$/, "");
+
+    await cloudinary.uploader.destroy(publicId);
+
+    console.log(`Cloudinary image deleted: ${publicId}`);
   } catch (error) {
-    // File already missing - ignore
+    console.error("Cloudinary delete error:", error);
   }
 };
 
@@ -56,8 +65,9 @@ export const createRoom = async (req, res) => {
       });
     }
 
+    // Cloudinary URLs
     const images = req.files
-      ? req.files.map((file) => `/uploads/${file.filename}`)
+      ? req.files.map((file) => file.path)
       : [];
 
     const room = await Room.create({
@@ -71,9 +81,15 @@ export const createRoom = async (req, res) => {
         ? JSON.parse(amenities)
         : [],
 
-      location: JSON.parse(location),
+      location:
+        typeof location === "string"
+          ? JSON.parse(location)
+          : location,
 
-      contact: JSON.parse(contact),
+      contact:
+        typeof contact === "string"
+          ? JSON.parse(contact)
+          : contact,
 
       postedBy: req.user.userId,
     });
@@ -313,19 +329,20 @@ export const updateRoom = async (req, res) => {
 
     /* -----------------------------------------
        UPDATE IMAGES
-       If new images are uploaded,
-       old images will be removed.
+       New images replace old images
     ----------------------------------------- */
 
     if (req.files && req.files.length > 0) {
       const oldImages = room.images || [];
 
+      // Delete old Cloudinary images
       for (const image of oldImages) {
-        await deleteImageFile(image);
+        await deleteCloudinaryImage(image);
       }
 
+      // Save new Cloudinary URLs
       room.images = req.files.map(
-        (file) => `/uploads/${file.filename}`
+        (file) => file.path
       );
     }
 
@@ -373,12 +390,12 @@ export const deleteRoom = async (req, res) => {
     }
 
     /* -----------------------------------------
-       DELETE IMAGES
+       DELETE CLOUDINARY IMAGES
     ----------------------------------------- */
 
     if (room.images?.length > 0) {
       for (const image of room.images) {
-        await deleteImageFile(image);
+        await deleteCloudinaryImage(image);
       }
     }
 

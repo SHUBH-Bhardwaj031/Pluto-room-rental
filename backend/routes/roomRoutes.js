@@ -1,5 +1,8 @@
 import express from "express";
 import multer from "multer";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+
+import cloudinary from "../config/cloudinary.js";
 
 import {
   createRoom,
@@ -15,22 +18,22 @@ import authMiddleware from "../middleware/authMiddleware.js";
 const router = express.Router();
 
 /* =========================================================
-   MULTER CONFIG
+   CLOUDINARY + MULTER CONFIG
 ========================================================= */
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-
-  filename: (req, file, cb) => {
-    const uniqueName = `${Date.now()}-${file.originalname}`;
-    cb(null, uniqueName);
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "pluto-rooms",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
   },
 });
 
 const upload = multer({
   storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
 });
 
 /* =========================================================
@@ -66,7 +69,6 @@ router.post(
 
 /* =========================================================
    SINGLE ROOM
-   Keep this AFTER /my-posts
 ========================================================= */
 
 router.get(
