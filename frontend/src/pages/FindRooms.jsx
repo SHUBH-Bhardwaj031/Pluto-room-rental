@@ -51,7 +51,7 @@ const FindRooms = () => {
       }
 
       const response = await axios.get(
-        "${import.meta.env.VITE_API_URL}/api/rooms",
+        `${import.meta.env.VITE_API_URL}/api/rooms`,
         { params }
       );
 

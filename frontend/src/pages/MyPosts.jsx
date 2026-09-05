@@ -35,7 +35,7 @@ const MyPosts = () => {
       }
 
       const response = await axios.get(
-        "${import.meta.env.VITE_API_URL}/api/rooms/my-posts",
+        `${import.meta.env.VITE_API_URL}/api/rooms/my-posts`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

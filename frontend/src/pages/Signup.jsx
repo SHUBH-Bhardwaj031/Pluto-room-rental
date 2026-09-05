@@ -44,13 +44,13 @@ const Signup = () => {
     try {
       // Register user
       await axios.post(
-        "${import.meta.env.VITE_API_URL}/api/auth/register",
+        `${import.meta.env.VITE_API_URL}/api/auth/register`,
         formData
       );
 
       // Login immediately after successful registration
       const loginResponse = await axios.post(
-        "${import.meta.env.VITE_API_URL}/api/auth/login",
+        `${import.meta.env.VITE_API_URL}/api/auth/login`,
         {
           email: formData.email,
           password: formData.password,

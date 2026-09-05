@@ -21,7 +21,7 @@ const Home = () => {
     const fetchRooms = async () => {
       try {
         const response = await axios.get(
-          "${import.meta.env.VITE_API_URL}/api/rooms"
+          `${import.meta.env.VITE_API_URL}/api/rooms`
         );
 
         setRooms(response.data.rooms.slice(0, 3));

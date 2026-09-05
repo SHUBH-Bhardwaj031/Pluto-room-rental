@@ -108,7 +108,7 @@ const AddRoom = () => {
       });
 
       const response = await axios.post(
-        "${import.meta.env.VITE_API_URL}/api/rooms",
+        `${import.meta.env.VITE_API_URL}/api/rooms`,
         roomData,
         {
           headers: {
