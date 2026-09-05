@@ -466,7 +466,7 @@ const MyPosts = () => {
 
                     {room.images?.length > 0 ? (
                       <img
-                        src={`${import.meta.env.VITE_API_URL}${room.images[0]}`}
+                        src={room.images[0]}
                         alt={room.title}
                         className="
                           w-full
