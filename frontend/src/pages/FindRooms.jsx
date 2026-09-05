@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import axios from "axios";
 import {
   MapPin,
@@ -9,6 +10,8 @@ import {
 import RoomCard from "../components/RoomCard";
 
 const FindRooms = () => {
+  const [searchParams] = useSearchParams();
+
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -50,12 +53,15 @@ const FindRooms = () => {
         params.maxRent = currentFilters.maxRent;
       }
 
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/rooms`,
-        { params }
-      );
+     const response = await axios.get(
+  `${import.meta.env.VITE_API_URL}/api/rooms`,
+  { params }
+);
 
-      setRooms(response.data.rooms || []);
+// Minimum 800ms loading time
+await new Promise((resolve) => setTimeout(resolve, 800));
+
+setRooms(response.data.rooms || []);
     } catch (error) {
       console.error("Fetch rooms error:", error);
 
@@ -70,10 +76,23 @@ const FindRooms = () => {
 
   // ================= INITIAL LOAD =================
 
-  useEffect(() => {
-    fetchRooms();
-  }, []);
+ // ================= INITIAL LOAD =================
 
+useEffect(() => {
+  const cityFromUrl = searchParams.get("city");
+  const localityFromUrl = searchParams.get("locality");
+
+  const initialFilters = {
+    city: cityFromUrl || "",
+    locality: localityFromUrl || "",
+    roomType: "",
+    minRent: "",
+    maxRent: "",
+  };
+
+  setFilters(initialFilters);
+  fetchRooms(initialFilters);
+}, [searchParams]);
   // ================= HANDLE CHANGE =================
 
   const handleChange = (e) => {

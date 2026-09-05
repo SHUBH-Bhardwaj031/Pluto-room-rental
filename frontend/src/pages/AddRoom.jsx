@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MapView from "../components/MapView";
 import axios from "axios";
-import { X, ImagePlus } from "lucide-react";
+import { X, ImagePlus, MapPin, Loader2 } from "lucide-react";
+
+const DEFAULT_LATITUDE = 26.8467;
+const DEFAULT_LONGITUDE = 80.9462;
 
 const AddRoom = () => {
   const [formData, setFormData] = useState({
@@ -24,12 +27,258 @@ const AddRoom = () => {
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState([]);
 
+  // Location loading states
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationMessage, setLocationMessage] = useState("");
+
+  /*
+  |--------------------------------------------------------------------------
+  | Generic input handler
+  |--------------------------------------------------------------------------
+  */
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    // Clear old location message when user edits location
+    if (
+      name === "address" ||
+      name === "city" ||
+      name === "locality"
+    ) {
+      setLocationMessage("");
+    }
   };
+
+  /*
+  |--------------------------------------------------------------------------
+  | MAP CLICK → FORM
+  |--------------------------------------------------------------------------
+  |
+  | User clicks map
+  |        ↓
+  | latitude / longitude
+  |        ↓
+  | Nominatim reverse geocoding
+  |        ↓
+  | address / city / locality
+  |
+  */
+
+  const handleMapLocationSelect = async ({
+    latitude,
+    longitude,
+  }) => {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    // Immediately update coordinates
+    setFormData((prev) => ({
+      ...prev,
+      latitude: lat.toFixed(6),
+      longitude: lng.toFixed(6),
+    }));
+
+    setLocationLoading(true);
+    setLocationMessage("Getting location details...");
+
+    try {
+      const response = await axios.get(
+        "https://nominatim.openstreetmap.org/reverse",
+        {
+          params: {
+            lat,
+            lon: lng,
+            format: "json",
+            addressdetails: 1,
+          },
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
+
+      const addressData = response.data?.address || {};
+
+      /*
+       * Nominatim can return different keys depending
+       * on the selected location.
+       */
+
+      const city =
+        addressData.city ||
+        addressData.town ||
+        addressData.municipality ||
+        addressData.village ||
+        "";
+
+      const locality =
+        addressData.suburb ||
+        addressData.neighbourhood ||
+        addressData.city_district ||
+        addressData.quarter ||
+        "";
+
+      const displayAddress =
+        response.data?.display_name || "";
+
+      setFormData((prev) => ({
+        ...prev,
+
+        latitude: lat.toFixed(6),
+        longitude: lng.toFixed(6),
+
+        address: displayAddress,
+        city,
+        locality,
+      }));
+
+      setLocationMessage("Location selected successfully.");
+    } catch (error) {
+      console.error("Reverse geocoding error:", error);
+
+      setLocationMessage(
+        "Coordinates selected. Could not automatically get address details."
+      );
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | FORM → MAP
+  |--------------------------------------------------------------------------
+  |
+  | User types Address / City / Locality
+  |        ↓
+  | Wait 1 second
+  |        ↓
+  | Nominatim geocoding
+  |        ↓
+  | latitude / longitude
+  |        ↓
+  | Map automatically moves
+  |
+  */
+
+  useEffect(() => {
+    const address = formData.address.trim();
+    const city = formData.city.trim();
+    const locality = formData.locality.trim();
+
+    /*
+     * Don't search until at least one useful location field
+     * has enough text.
+     */
+    if (
+      address.length < 3 &&
+      city.length < 3 &&
+      locality.length < 3
+    ) {
+      return;
+    }
+
+    /*
+     * If the address was filled by map reverse-geocoding,
+     * don't immediately geocode it again.
+     *
+     * We still allow manual edits because the timeout
+     * waits for the user to finish typing.
+     */
+
+    const timer = setTimeout(async () => {
+      const searchParts = [
+        address,
+        locality,
+        city,
+      ].filter(Boolean);
+
+      const query = searchParts.join(", ");
+
+      if (!query) return;
+
+      setLocationLoading(true);
+      setLocationMessage("Finding location on map...");
+
+      try {
+        const response = await axios.get(
+          "https://nominatim.openstreetmap.org/search",
+          {
+            params: {
+              q: query,
+              format: "json",
+              addressdetails: 1,
+              limit: 1,
+            },
+            headers: {
+              Accept: "application/json",
+            },
+          }
+        );
+
+        if (!response.data || response.data.length === 0) {
+          setLocationMessage(
+            "Location not found. Try a more specific address."
+          );
+          return;
+        }
+
+        const result = response.data[0];
+
+        const latitude = Number(result.lat);
+        const longitude = Number(result.lon);
+
+        if (
+          Number.isNaN(latitude) ||
+          Number.isNaN(longitude)
+        ) {
+          setLocationMessage("Invalid location coordinates.");
+          return;
+        }
+
+        /*
+         * Update coordinates.
+         *
+         * MapView receives these new coordinates and
+         * automatically moves the map + marker.
+         */
+
+        setFormData((prev) => ({
+          ...prev,
+          latitude: latitude.toFixed(6),
+          longitude: longitude.toFixed(6),
+        }));
+
+        setLocationMessage("Map location updated.");
+      } catch (error) {
+        console.error("Geocoding error:", error);
+
+        setLocationMessage(
+          "Could not find this location right now."
+        );
+      } finally {
+        setLocationLoading(false);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [
+    formData.address,
+    formData.city,
+    formData.locality,
+  ]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | IMAGE HANDLING
+  |--------------------------------------------------------------------------
+  */
 
   const handleImageChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -46,6 +295,12 @@ const AddRoom = () => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  /*
+  |--------------------------------------------------------------------------
+  | FORM SUBMIT
+  |--------------------------------------------------------------------------
+  */
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -57,6 +312,17 @@ const AddRoom = () => {
 
       if (!token) {
         setMessage("Please login first");
+        setLoading(false);
+        return;
+      }
+
+      if (
+        !formData.latitude ||
+        !formData.longitude
+      ) {
+        setMessage(
+          "Please select a location on the map or enter a valid address."
+        );
         setLoading(false);
         return;
       }
@@ -84,8 +350,11 @@ const AddRoom = () => {
           address: formData.address,
           city: formData.city,
           locality: formData.locality,
+
           coordinates: {
             type: "Point",
+
+            // GeoJSON = [longitude, latitude]
             coordinates: [
               Number(formData.longitude),
               Number(formData.latitude),
@@ -136,6 +405,7 @@ const AddRoom = () => {
       });
 
       setImages([]);
+      setLocationMessage("");
     } catch (error) {
       setMessage(
         error.response?.data?.message ||
@@ -155,7 +425,6 @@ const AddRoom = () => {
 
       <div className="absolute inset-0 z-0 pointer-events-none">
 
-        {/* Grid */}
         <div
           className="
             absolute inset-0
@@ -165,7 +434,6 @@ const AddRoom = () => {
           "
         />
 
-        {/* Top-left glow */}
         <div
           className="
             absolute
@@ -179,7 +447,6 @@ const AddRoom = () => {
           "
         />
 
-        {/* Right glow */}
         <div
           className="
             absolute
@@ -193,7 +460,6 @@ const AddRoom = () => {
           "
         />
 
-        {/* Bottom glow */}
         <div
           className="
             absolute
@@ -217,7 +483,7 @@ const AddRoom = () => {
 
         <div className="max-w-3xl mx-auto">
 
-          {/* ================= HEADER ================= */}
+          {/* HEADER */}
 
           <div className="mb-8">
 
@@ -235,7 +501,7 @@ const AddRoom = () => {
 
           </div>
 
-          {/* ================= FORM ================= */}
+          {/* FORM */}
 
           <form
             onSubmit={handleSubmit}
@@ -417,6 +683,7 @@ const AddRoom = () => {
                 </div>
 
               </div>
+
             </section>
 
             {/* ================= LOCATION ================= */}
@@ -428,6 +695,8 @@ const AddRoom = () => {
               </h2>
 
               <div className="space-y-5">
+
+                {/* ADDRESS */}
 
                 <div>
 
@@ -456,6 +725,8 @@ const AddRoom = () => {
                   />
 
                 </div>
+
+                {/* CITY + LOCALITY */}
 
                 <div className="grid md:grid-cols-2 gap-5">
 
@@ -516,6 +787,8 @@ const AddRoom = () => {
                   </div>
 
                 </div>
+
+                {/* COORDINATES */}
 
                 <div className="grid md:grid-cols-2 gap-5">
 
@@ -585,13 +858,18 @@ const AddRoom = () => {
 
                   <div className="mb-3">
 
-                    <h3 className="text-sm font-medium text-zinc-300">
+                    <h3 className="text-sm font-medium text-zinc-300 flex items-center gap-2">
+                      <MapPin
+                        size={16}
+                        className="text-indigo-400"
+                      />
+
                       Select Location on Map
                     </h3>
 
                     <p className="text-xs text-zinc-500 mt-1">
-                      Click anywhere on the map to select the exact room
-                      location.
+                      Click on the map to select a location, or enter
+                      the address above to move the map automatically.
                     </p>
 
                   </div>
@@ -599,23 +877,50 @@ const AddRoom = () => {
                   <div className="rounded-2xl overflow-hidden border border-zinc-800">
 
                     <MapView
-                      latitude={formData.latitude || 26.8467}
-                      longitude={formData.longitude || 80.9462}
+                      latitude={
+                        formData.latitude || DEFAULT_LATITUDE
+                      }
+                      longitude={
+                        formData.longitude || DEFAULT_LONGITUDE
+                      }
                       selectable={true}
-                      onLocationSelect={({ latitude, longitude }) => {
-                        setFormData((prev) => ({
-                          ...prev,
-                          latitude: latitude.toFixed(6),
-                          longitude: longitude.toFixed(6),
-                        }));
-                      }}
+                      onLocationSelect={handleMapLocationSelect}
                     />
+
+                  </div>
+
+                  {/* LOCATION STATUS */}
+
+                  <div className="min-h-6 mt-3">
+
+                    {locationLoading && (
+                      <div className="flex items-center gap-2 text-xs text-indigo-400">
+
+                        <Loader2
+                          size={14}
+                          className="animate-spin"
+                        />
+
+                        <span>
+                          Finding location...
+                        </span>
+
+                      </div>
+                    )}
+
+                    {!locationLoading &&
+                      locationMessage && (
+                        <p className="text-xs text-zinc-500">
+                          {locationMessage}
+                        </p>
+                      )}
 
                   </div>
 
                 </div>
 
               </div>
+
             </section>
 
             {/* ================= IMAGES ================= */}
@@ -855,7 +1160,9 @@ const AddRoom = () => {
                 shadow-indigo-600/10
               "
             >
-              {loading ? "Posting Room..." : "Post Room"}
+              {loading
+                ? "Posting Room..."
+                : "Post Room"}
             </button>
 
             {message && (

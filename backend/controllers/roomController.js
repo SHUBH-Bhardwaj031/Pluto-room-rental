@@ -1,4 +1,5 @@
 import Room from "../models/Room.js";
+import User from "../models/User.js";
 import cloudinary from "../config/cloudinary.js";
 
 /* =========================================================
@@ -411,6 +412,142 @@ export const deleteRoom = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete room error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+/* =========================================================
+   SAVE ROOM
+========================================================= */
+
+export const saveRoom = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const room = await Room.findById(req.params.id);
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: "Room not found",
+      });
+    }
+
+    // Prevent duplicate saves
+    const alreadySaved = user.savedRooms.some(
+      (savedRoomId) =>
+        savedRoomId.toString() === room._id.toString()
+    );
+
+    if (alreadySaved) {
+      return res.status(400).json({
+        success: false,
+        message: "Room already saved",
+      });
+    }
+
+    user.savedRooms.push(room._id);
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Room saved successfully",
+      saved: true,
+    });
+  } catch (error) {
+    console.error("Save room error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+/* =========================================================
+   UNSAVE ROOM
+========================================================= */
+
+export const unsaveRoom = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.savedRooms = user.savedRooms.filter(
+      (roomId) =>
+        roomId.toString() !== req.params.id
+    );
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Room removed from saved rooms",
+      saved: false,
+    });
+  } catch (error) {
+    console.error("Unsave room error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+/* =========================================================
+   GET SAVED ROOMS
+========================================================= */
+
+export const getSavedRooms = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId)
+      .populate({
+        path: "savedRooms",
+        populate: {
+          path: "postedBy",
+          select: "name email phone",
+        },
+      });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Remove deleted/non-existing rooms
+    const rooms = user.savedRooms.filter(
+      (room) => room !== null
+    );
+
+    res.status(200).json({
+      success: true,
+      count: rooms.length,
+      rooms,
+    });
+  } catch (error) {
+    console.error("Get saved rooms error:", error);
 
     res.status(500).json({
       success: false,

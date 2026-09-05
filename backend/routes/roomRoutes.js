@@ -1,5 +1,7 @@
 import express from "express";
+
 import multer from "multer";
+
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 import cloudinary from "../config/cloudinary.js";
@@ -11,6 +13,9 @@ import {
   getMyRooms,
   updateRoom,
   deleteRoom,
+  saveRoom,
+  unsaveRoom,
+  getSavedRooms,
 } from "../controllers/roomController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -25,7 +30,12 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: "pluto-rooms",
-    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    allowed_formats: [
+      "jpg",
+      "jpeg",
+      "png",
+      "webp",
+    ],
   },
 });
 
@@ -45,8 +55,6 @@ router.get("/", getRooms);
 
 /* =========================================================
    PROTECTED SPECIAL ROUTES
-   IMPORTANT:
-   /my-posts MUST COME BEFORE /:id
 ========================================================= */
 
 // Get rooms posted by logged-in user
@@ -54,6 +62,31 @@ router.get(
   "/my-posts",
   authMiddleware,
   getMyRooms
+);
+
+// Get saved rooms
+router.get(
+  "/saved",
+  authMiddleware,
+  getSavedRooms
+);
+
+/* =========================================================
+   SAVE / UNSAVE ROOM
+========================================================= */
+
+// Save room
+router.post(
+  "/:id/save",
+  authMiddleware,
+  saveRoom
+);
+
+// Remove saved room
+router.delete(
+  "/:id/save",
+  authMiddleware,
+  unsaveRoom
 );
 
 /* =========================================================

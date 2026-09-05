@@ -1,13 +1,19 @@
-    import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   MapPin,
   IndianRupee,
+  Bookmark,
 } from "lucide-react";
+import axios from "axios";
 
 import googleMapsIcon from "../assets/google-maps-icon.png";
 
 const RoomCard = ({ room }) => {
   const navigate = useNavigate();
+
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const coordinates =
     room.location?.coordinates?.coordinates;
@@ -16,25 +22,134 @@ const RoomCard = ({ room }) => {
     Array.isArray(coordinates) &&
     coordinates.length === 2;
 
+  /* =====================================================
+     CHECK INITIAL SAVED STATE
+  ===================================================== */
+
+  useEffect(() => {
+    const checkSavedRoom = async () => {
+      const token = localStorage.getItem("plutoToken");
+
+      if (!token) return;
+
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/rooms/saved`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const savedRooms =
+          response.data.rooms || [];
+
+        const isSaved = savedRooms.some(
+          (savedRoom) =>
+            savedRoom._id === room._id
+        );
+
+        setSaved(isSaved);
+      } catch (error) {
+        console.error(
+          "Check saved room error:",
+          error
+        );
+      }
+    };
+
+    checkSavedRoom();
+  }, [room._id]);
+
+  /* =====================================================
+     SAVE / UNSAVE
+  ===================================================== */
+
+  const handleSave = async (e) => {
+    e.stopPropagation();
+
+    const token =
+      localStorage.getItem("plutoToken");
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    if (saving) return;
+
+    try {
+      setSaving(true);
+
+      if (saved) {
+        await axios.delete(
+          `${import.meta.env.VITE_API_URL}/api/rooms/${room._id}/save`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setSaved(false);
+      } else {
+        await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/rooms/${room._id}/save`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setSaved(true);
+      }
+    } catch (error) {
+      console.error(
+        "Save/unsave room error:",
+        error
+      );
+
+      alert(
+        error.response?.data?.message ||
+          "Unable to update saved room"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* =====================================================
+     DIRECTIONS
+  ===================================================== */
+
   const handleDirections = (e) => {
     e.stopPropagation();
 
     if (!hasCoordinates) return;
 
-    // Browser current location detect karega
     if (!navigator.geolocation) {
-      alert("Location detection is not supported by your browser.");
+      alert(
+        "Location detection is not supported by your browser."
+      );
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const currentLatitude = position.coords.latitude;
-        const currentLongitude = position.coords.longitude;
+        const currentLatitude =
+          position.coords.latitude;
 
-        const [roomLongitude, roomLatitude] = coordinates;
+        const currentLongitude =
+          position.coords.longitude;
 
-        // Current Location -> Room Location
+        const [
+          roomLongitude,
+          roomLatitude,
+        ] = coordinates;
+
         const googleMapsUrl =
           `https://www.google.com/maps/dir/?api=1` +
           `&origin=${currentLatitude},${currentLongitude}` +
@@ -47,15 +162,23 @@ const RoomCard = ({ room }) => {
         );
       },
       (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
+        if (
+          error.code ===
+          error.PERMISSION_DENIED
+        ) {
           alert(
             "Location permission denied. Please allow location access and try again."
           );
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
+        } else if (
+          error.code ===
+          error.POSITION_UNAVAILABLE
+        ) {
           alert(
             "Your current location could not be detected."
           );
-        } else if (error.code === error.TIMEOUT) {
+        } else if (
+          error.code === error.TIMEOUT
+        ) {
           alert(
             "Location detection timed out. Please try again."
           );
@@ -72,6 +195,10 @@ const RoomCard = ({ room }) => {
       }
     );
   };
+
+  /* =====================================================
+     CARD CLICK
+  ===================================================== */
 
   const handleCardClick = () => {
     navigate(`/rooms/${room._id}`);
@@ -105,6 +232,45 @@ const RoomCard = ({ room }) => {
         <span className="absolute top-3 left-3 bg-black/75 backdrop-blur-md text-white text-xs font-medium px-3 py-1.5 rounded-full border border-white/10">
           {room.roomType}
         </span>
+
+        {/* ================= SAVE BUTTON ================= */}
+
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          title={
+            saved
+              ? "Remove from saved rooms"
+              : "Save room"
+          }
+          className={`
+            absolute
+            top-3
+            right-3
+            w-10
+            h-10
+            rounded-xl
+            backdrop-blur-md
+            border
+            flex
+            items-center
+            justify-center
+            transition-all
+            duration-300
+            ${
+              saved
+                ? "bg-indigo-600 border-indigo-500 text-white"
+                : "bg-black/70 border-white/10 text-zinc-300 hover:text-white hover:bg-indigo-600/80 hover:border-indigo-500"
+            }
+            ${saving ? "opacity-60 cursor-wait" : ""}
+          `}
+        >
+          <Bookmark
+            size={18}
+            fill={saved ? "currentColor" : "none"}
+          />
+        </button>
 
       </div>
 
@@ -162,7 +328,7 @@ const RoomCard = ({ room }) => {
           </div>
         )}
 
-        {/* ================= VIEW DETAILS + GOOGLE MAPS ================= */}
+        {/* ================= ACTIONS ================= */}
 
         <div className="mt-5 pt-4 border-t border-zinc-800 flex items-center gap-2">
 

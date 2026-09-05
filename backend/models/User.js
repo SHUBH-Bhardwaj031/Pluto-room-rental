@@ -31,6 +31,15 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    // ================= SAVED ROOMS =================
+
+    savedRooms: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Room",
+      },
+    ],
   },
   {
     timestamps: true,

@@ -16,6 +16,9 @@ const Home = () => {
   const navigate = useNavigate();
 
   const [rooms, setRooms] = useState([]);
+  const [searchCity, setSearchCity] = useState("");
+
+
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -140,25 +143,41 @@ const Home = () => {
                     className="text-indigo-400 shrink-0"
                   />
 
-                  <input
-                    type="text"
-                    placeholder="Where do you want to live?"
-                    className="w-full bg-transparent outline-none text-white placeholder:text-zinc-600"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        navigate(
-                          `/find-rooms?city=${encodeURIComponent(
-                            e.target.value
-                          )}`
-                        );
-                      }
-                    }}
-                  />
+                 <input
+  type="text"
+  placeholder="Where do you want to live?"
+  value={searchCity}
+  onChange={(e) => setSearchCity(e.target.value)}
+  className="w-full bg-transparent outline-none text-white placeholder:text-zinc-600"
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      const city = searchCity.trim();
+
+      if (city) {
+        navigate(
+          `/find-rooms?city=${encodeURIComponent(city)}`
+        );
+      } else {
+        navigate("/find-rooms");
+      }
+    }
+  }}
+/>
 
                 </div>
 
-                <button
-                  onClick={() => navigate("/find-rooms")}
+               <button
+  onClick={() => {
+    const city = searchCity.trim();
+
+    if (city) {
+      navigate(
+        `/find-rooms?city=${encodeURIComponent(city)}`
+      );
+    } else {
+      navigate("/find-rooms");
+    }
+  }}
                   className="flex items-center justify-center gap-2 bg-white text-black hover:bg-zinc-200 px-7 py-3.5 rounded-xl font-semibold transition-all duration-300"
                 >
                   <Search size={18} />
