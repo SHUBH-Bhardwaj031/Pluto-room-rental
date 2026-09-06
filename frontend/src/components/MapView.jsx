@@ -21,13 +21,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-/*
-|--------------------------------------------------------------------------
-| Map Center Controller
-|--------------------------------------------------------------------------
-| Whenever latitude/longitude changes from the form,
-| the map automatically moves to that location.
-*/
+/* =========================================================
+   MAP CENTER CONTROLLER
+========================================================= */
 
 const MapCenterController = ({ position }) => {
   const map = useMap();
@@ -45,17 +41,18 @@ const MapCenterController = ({ position }) => {
   return null;
 };
 
-/*
-|--------------------------------------------------------------------------
-| Location Picker
-|--------------------------------------------------------------------------
-| Clicking anywhere on the map sends latitude/longitude
-| back to AddRoom.jsx.
-*/
+/* =========================================================
+   LOCATION PICKER
+========================================================= */
 
-const LocationPicker = ({ position, onLocationSelect }) => {
+const LocationPicker = ({
+  position,
+  onLocationSelect,
+}) => {
   useMapEvents({
     click(e) {
+      if (!onLocationSelect) return;
+
       onLocationSelect({
         latitude: e.latlng.lat,
         longitude: e.latlng.lng,
@@ -66,11 +63,20 @@ const LocationPicker = ({ position, onLocationSelect }) => {
   if (!position) return null;
 
   return (
-    <Marker position={[position.latitude, position.longitude]}>
+    <Marker
+      position={[
+        position.latitude,
+        position.longitude,
+      ]}
+    >
       <Popup>Selected Room Location</Popup>
     </Marker>
   );
 };
+
+/* =========================================================
+   MAP VIEW
+========================================================= */
 
 const MapView = ({
   latitude = 26.8467,
@@ -101,20 +107,39 @@ const MapView = ({
   };
 
   return (
-    <div className="w-full h-[400px] rounded-2xl overflow-hidden border border-zinc-800">
+    <div
+      className="
+        relative
+        z-0
+        w-full
+        h-[400px]
+        overflow-hidden
+        border
+        border-[#D6D5CC]
+        isolate
+      "
+    >
       <MapContainer
-        center={[mapCenter.latitude, mapCenter.longitude]}
+        center={[
+          mapCenter.latitude,
+          mapCenter.longitude,
+        ]}
         zoom={zoom}
         scrollWheelZoom={true}
         className="w-full h-full"
+        style={{
+          zIndex: 0,
+        }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          zIndex={1}
         />
 
-        {/* Move map when coordinates change */}
-        <MapCenterController position={position} />
+        <MapCenterController
+          position={position}
+        />
 
         {selectable ? (
           <LocationPicker
@@ -123,7 +148,12 @@ const MapView = ({
           />
         ) : (
           position && (
-            <Marker position={[position.latitude, position.longitude]}>
+            <Marker
+              position={[
+                position.latitude,
+                position.longitude,
+              ]}
+            >
               <Popup>{title}</Popup>
             </Marker>
           )

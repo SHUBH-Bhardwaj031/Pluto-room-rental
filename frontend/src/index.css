@@ -280,3 +280,81 @@ img {
 
   background-color: #050505;
 }
+
+@layer components {
+  .input {
+    @apply w-full border border-[#D7D6CD] bg-[#FAF9F4] px-4 py-3 text-sm font-medium text-[#26372C] outline-none transition;
+    @apply placeholder:text-[#A1A39D];
+    @apply focus:border-[#829685] focus:bg-white focus:ring-2 focus:ring-[#E9EFE7];
+  }
+}
+
+/* =========================================================
+   PLUTO FORM VISIBILITY FIX
+   ========================================================= */
+
+input,
+textarea,
+select {
+  color: #171A18 !important;
+  -webkit-text-fill-color: #171A18 !important;
+  background-color: #ffffff !important;
+  caret-color: #173F2B !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #858B84 !important;
+  -webkit-text-fill-color: #858B84 !important;
+  opacity: 1 !important;
+}
+
+/* Native select */
+select {
+  color: #26372C !important;
+  -webkit-text-fill-color: #26372C !important;
+  background-color: #ffffff !important;
+  color-scheme: light !important;
+}
+
+select option {
+  color: #26372C !important;
+  background-color: #ffffff !important;
+  -webkit-text-fill-color: #26372C !important;
+}
+
+/* Disabled options */
+select option:disabled {
+  color: #858B84 !important;
+  background-color: #ffffff !important;
+}
+
+/* Search input specifically */
+#room-search {
+  color: #171A18 !important;
+  -webkit-text-fill-color: #171A18 !important;
+  background-color: transparent !important;
+  caret-color: #173F2B !important;
+}
+
+#room-search::placeholder {
+  color: #858B84 !important;
+  -webkit-text-fill-color: #858B84 !important;
+  opacity: 1 !important;
+}
+
+/* Number inputs */
+input[type="number"] {
+  color: #171A18 !important;
+  -webkit-text-fill-color: #171A18 !important;
+  background-color: #ffffff !important;
+}
+
+/* Remove browser autofill weird colors */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #171A18 !important;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}

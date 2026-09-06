@@ -3,22 +3,26 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   ArrowRight,
-  MapPin,
+  ArrowUpRight,
   Search,
-  Sparkles,
+  MapPin,
   Users,
-  Home as HomeIcon,
   ShieldCheck,
+  Home as HomeIcon,
+  Plus,
+  Compass,
+  Check,
 } from "lucide-react";
 import { motion } from "framer-motion";
+
+import RoomCard from "../components/RoomCard";
 
 const Home = () => {
   const navigate = useNavigate();
 
   const [rooms, setRooms] = useState([]);
   const [searchCity, setSearchCity] = useState("");
-
-
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -27,563 +31,714 @@ const Home = () => {
           `${import.meta.env.VITE_API_URL}/api/rooms`
         );
 
-        setRooms(response.data.rooms.slice(0, 3));
+        setRooms((response.data.rooms || []).slice(0, 3));
       } catch (error) {
         console.error("Fetch rooms error:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchRooms();
   }, []);
 
-  return (
-    <div className="pluto-page text-white overflow-hidden">
+  const handleSearch = (e) => {
+    e.preventDefault();
 
-      {/* =====================================================
-          HERO
-      ===================================================== */}
-
-      <section className="relative min-h-[720px] flex items-center px-4 py-20 pluto-grid">
-
-        {/* Ambient background glows */}
-
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-
-          <div className="absolute top-[5%] left-[8%] w-[420px] h-[420px] bg-indigo-600/10 rounded-full blur-[150px]" />
-
-          <div className="absolute top-[25%] right-[5%] w-[380px] h-[380px] bg-purple-600/10 rounded-full blur-[150px]" />
-
-          <div className="absolute bottom-[-10%] left-[40%] w-[400px] h-[300px] bg-pink-600/[0.04] rounded-full blur-[150px]" />
-
-        </div>
-
-        {/* Hero content */}
-
-        <div className="relative max-w-6xl mx-auto w-full">
-
-          {/* Badge */}
-
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-800/80 bg-zinc-950/70 backdrop-blur-xl mb-8 shadow-[0_0_30px_rgba(124,58,237,0.06)]"
-          >
-            <Sparkles
-              size={16}
-              className="text-indigo-400"
-            />
-
-            <span className="text-sm text-zinc-300">
-              Community powered room discovery
-            </span>
-          </motion.div>
-
-          {/* Heading */}
-
-          <motion.h1
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.8,
-              ease: "easeOut",
-            }}
-            className="max-w-4xl text-5xl md:text-7xl font-bold tracking-tight leading-[1.05]"
-          >
-            Find a place
-            <br />
-
-            <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              that feels like home.
-            </span>
-          </motion.h1>
-
-          {/* Description */}
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.7,
-              delay: 0.15,
-            }}
-            className="max-w-2xl text-lg md:text-xl text-zinc-400 mt-7 leading-relaxed"
-          >
-            Discover rooms, flats and shared spaces around you.
-            Explore real listings posted by the Pluto community.
-          </motion.p>
-
-          {/* Search */}
-
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: 25,
-              scale: 0.98,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-              scale: 1,
-            }}
-            transition={{
-              duration: 0.7,
-              delay: 0.35,
-            }}
-            className="mt-10 max-w-3xl"
-          >
-            <div className="bg-zinc-950/85 backdrop-blur-2xl border border-zinc-800/80 rounded-2xl p-2 shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
-
-              <div className="flex flex-col md:flex-row gap-2">
-
-                <div className="flex items-center gap-3 flex-1 px-4 py-3">
-
-                  <MapPin
-                    size={20}
-                    className="text-indigo-400 shrink-0"
-                  />
-
-                 <input
-  type="text"
-  placeholder="Where do you want to live?"
-  value={searchCity}
-  onChange={(e) => setSearchCity(e.target.value)}
-  className="w-full bg-transparent outline-none text-white placeholder:text-zinc-600"
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      const city = searchCity.trim();
-
-      if (city) {
-        navigate(
-          `/find-rooms?city=${encodeURIComponent(city)}`
-        );
-      } else {
-        navigate("/find-rooms");
-      }
-    }
-  }}
-/>
-
-                </div>
-
-               <button
-  onClick={() => {
     const city = searchCity.trim();
 
     if (city) {
-      navigate(
-        `/find-rooms?city=${encodeURIComponent(city)}`
-      );
+      navigate(`/find-rooms?city=${encodeURIComponent(city)}`);
     } else {
       navigate("/find-rooms");
     }
-  }}
-                  className="flex items-center justify-center gap-2 bg-white text-black hover:bg-zinc-200 px-7 py-3.5 rounded-xl font-semibold transition-all duration-300"
+  };
+
+  const searchByCity = (city) => {
+    setSearchCity(city);
+    navigate(`/find-rooms?city=${encodeURIComponent(city)}`);
+  };
+
+  return (
+    <main className="min-h-screen bg-[#F5F3EA] text-[#171A18]">
+      {/* =========================================================
+          HERO
+      ========================================================= */}
+      <section className="relative overflow-hidden border-b border-[#DDDCD3] bg-[#F5F3EA]">
+        {/* Decorative shapes */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -right-28 -top-28 h-[440px] w-[440px] rounded-full border border-[#D8D8CB]" />
+
+          <div className="absolute -right-16 -top-16 h-[300px] w-[300px] rounded-full border border-[#E3E1D7]" />
+
+          <div className="absolute bottom-[-170px] left-[-120px] h-[360px] w-[360px] rounded-full border border-[#DFDED4]" />
+
+          <div className="absolute right-[31%] top-[17%] h-3 w-3 rounded-full bg-[#E6B84A]" />
+
+          <div className="absolute right-[12%] top-[32%] h-2 w-2 rounded-full bg-[#C96B45]" />
+        </div>
+
+        <div className="relative mx-auto max-w-7xl px-5 pb-16 pt-12 sm:px-8 sm:pb-20 lg:px-10 lg:pb-24 lg:pt-20">
+          <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+            {/* LEFT */}
+            <div>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45 }}
+                className="mb-7 flex items-center gap-3"
+              >
+                <span className="flex h-8 w-8 items-center justify-center bg-[#173F2B] text-[#E6B84A]">
+                  <HomeIcon size={15} strokeWidth={2.5} />
+                </span>
+
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#55745F]">
+                    Pluto
+                  </p>
+
+                  <p className="text-xs font-semibold text-[#747872]">
+                    Rooms by people, for people.
+                  </p>
+                </div>
+              </motion.div>
+
+              <motion.h1
+                initial={{ opacity: 0, y: 22 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.65, delay: 0.08 }}
+                className="max-w-3xl text-[2.8rem] font-bold leading-[0.98] tracking-[-0.055em] text-[#171A18] sm:text-5xl lg:text-[5.2rem]"
+              >
+                A better way
+                <br />
+                to find your
+                <br />
+
+                <span className="relative inline-block text-[#173F2B]">
+                  next place.
+                  <span className="absolute -bottom-1 left-0 h-[5px] w-[72%] bg-[#E6B84A]" />
+                </span>
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, delay: 0.18 }}
+                className="mt-7 max-w-xl text-base leading-7 text-[#6E736E] sm:text-lg"
+              >
+                Discover rooms, flats and shared spaces
+                posted by people in your community.
+                Search a location, explore the details
+                and connect directly.
+              </motion.p>
+
+              {/* SEARCH */}
+              <motion.form
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, delay: 0.27 }}
+                onSubmit={handleSearch}
+                className="mt-9 flex max-w-2xl flex-col border border-[#CFCFC5] bg-white p-1.5 shadow-[0_14px_35px_rgba(23,63,43,0.08)] sm:flex-row"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5">
+                  <MapPin
+                    size={19}
+                    strokeWidth={2}
+                    className="shrink-0 text-[#173F2B]"
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <label className="block text-[9px] font-bold uppercase tracking-[0.16em] text-[#8A8D87]">
+                      Where do you want to live?
+                    </label>
+
+                    <input
+                      type="text"
+                      value={searchCity}
+                      onChange={(e) =>
+                        setSearchCity(e.target.value)
+                      }
+                      placeholder="Enter a city..."
+                      className="mt-0.5 w-full bg-transparent text-sm font-semibold text-[#171A18] outline-none placeholder:text-[#A0A29C]"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="flex items-center justify-center gap-2 bg-[#173F2B] px-7 py-3.5 text-sm font-bold text-white transition hover:bg-[#102F20]"
                 >
-                  <Search size={18} />
-                  Find Rooms
+                  <Search size={17} />
+                  Find rooms
                 </button>
+              </motion.form>
 
+              {/* CITY SHORTCUTS */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2"
+              >
+                <span className="text-xs font-semibold text-[#969992]">
+                  Popular:
+                </span>
+
+                {["Lucknow", "Delhi", "Bangalore", "Pune"].map(
+                  (city) => (
+                    <button
+                      key={city}
+                      type="button"
+                      onClick={() => searchByCity(city)}
+                      className="text-xs font-bold text-[#3D5144] underline decoration-[#C9C8BE] underline-offset-4 transition hover:text-[#173F2B]"
+                    >
+                      {city}
+                    </button>
+                  )
+                )}
+              </motion.div>
+            </div>
+
+            {/* RIGHT VISUAL */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.7, delay: 0.15 }}
+              className="hidden lg:block"
+            >
+              <div className="relative mx-auto max-w-[520px]">
+                {/* Main visual */}
+                <div className="relative border border-[#D6D5CB] bg-white p-4 shadow-[0_28px_65px_rgba(23,63,43,0.12)]">
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-[#E2E1D9] pb-4">
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#92958E]">
+                        Explore
+                      </p>
+
+                      <p className="mt-1 text-sm font-bold text-[#171A18]">
+                        Spaces around you
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-[#E6B84A]" />
+
+                      <span className="text-[10px] font-bold text-[#69706A]">
+                        Live listings
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* MAP */}
+                  <div className="relative mt-4 h-[335px] overflow-hidden border border-[#DEDDD5] bg-[#EEF0E8]">
+                    {/* Roads */}
+                    <div className="absolute left-[-5%] top-[31%] h-[2px] w-[110%] rotate-[16deg] bg-white" />
+
+                    <div className="absolute left-[-10%] top-[58%] h-[2px] w-[120%] rotate-[-10deg] bg-white" />
+
+                    <div className="absolute left-[24%] top-[-10%] h-[120%] w-[2px] rotate-[18deg] bg-white" />
+
+                    <div className="absolute left-[64%] top-[-10%] h-[120%] w-[2px] rotate-[-25deg] bg-white" />
+
+                    {/* Green areas */}
+                    <div className="absolute left-[5%] top-[8%] h-20 w-32 rounded-[45%] bg-[#DCE5D9]" />
+
+                    <div className="absolute bottom-[8%] right-[3%] h-24 w-36 rounded-[50%] bg-[#DCE5D9]" />
+
+                    <div className="absolute left-[42%] top-[43%] h-28 w-24 rounded-[50%] bg-[#D7E1D5]" />
+
+                    {/* Buildings */}
+                    <div className="absolute left-[10%] top-[52%] grid grid-cols-4 gap-1 opacity-60">
+                      {Array.from({ length: 16 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-4 w-4 bg-[#D1D3CA]"
+                        />
+                      ))}
+                    </div>
+
+                    <div className="absolute right-[10%] top-[15%] grid grid-cols-3 gap-1 opacity-60">
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-5 w-5 bg-[#D1D3CA]"
+                        />
+                      ))}
+                    </div>
+
+                    {/* Pins */}
+                    <MapPinVisual
+                      className="left-[24%] top-[29%]"
+                    />
+
+                    <MapPinVisual
+                      className="right-[24%] top-[23%]"
+                      yellow
+                    />
+
+                    <MapPinVisual
+                      className="left-[47%] top-[55%]"
+                      active
+                    />
+
+                    <MapPinVisual
+                      className="right-[31%] bottom-[22%]"
+                    />
+
+                    {/* Selected listing */}
+                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between border border-[#D8D7CE] bg-white px-4 py-3 shadow-[0_10px_25px_rgba(0,0,0,0.10)]">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center bg-[#173F2B] text-[#E6B84A]">
+                          <HomeIcon size={16} />
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-bold text-[#171A18]">
+                            Rooms near you
+                          </p>
+
+                          <p className="mt-0.5 text-[10px] text-[#888B85]">
+                            12 available spaces
+                          </p>
+                        </div>
+                      </div>
+
+                      <ArrowUpRight
+                        size={17}
+                        className="text-[#173F2B]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating stat */}
+                <div className="absolute -bottom-6 -left-7 flex items-center gap-3 border border-[#D7D6CC] bg-white px-5 py-4 shadow-[0_14px_35px_rgba(23,63,43,0.12)]">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F7E9B9] text-[#80651D]">
+                    <Compass size={17} />
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#969992]">
+                      Your search
+                    </p>
+
+                    <p className="mt-0.5 text-xs font-bold text-[#26372C]">
+                      Search → Explore → Connect
+                    </p>
+                  </div>
+                </div>
+
+                {/* Yellow detail */}
+                <div className="absolute -right-4 -top-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#E6B84A] text-[#173F2B] shadow-lg">
+                  <MapPin size={19} />
+                </div>
               </div>
-            </div>
-
-            <p className="text-xs text-zinc-600 mt-3 ml-2">
-              Try searching for Lucknow, Delhi, Bangalore...
-            </p>
-
-          </motion.div>
-
-          {/* Quick Stats */}
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{
-              duration: 0.8,
-              delay: 0.6,
-            }}
-            className="flex flex-wrap gap-8 mt-14"
-          >
-
-            <div>
-              <p className="text-2xl font-bold">
-                100%
-              </p>
-
-              <p className="text-sm text-zinc-500">
-                Community driven
-              </p>
-            </div>
-
-            <div className="h-10 w-px bg-zinc-800 hidden sm:block" />
-
-            <div>
-              <p className="text-2xl font-bold">
-                Easy
-              </p>
-
-              <p className="text-sm text-zinc-500">
-                Direct contact
-              </p>
-            </div>
-
-            <div className="h-10 w-px bg-zinc-800 hidden sm:block" />
-
-            <div>
-              <p className="text-2xl font-bold">
-                Free
-              </p>
-
-              <p className="text-sm text-zinc-500">
-                To discover
-              </p>
-            </div>
-
-          </motion.div>
-
+            </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* =====================================================
-          FEATURED ROOMS
-      ===================================================== */}
+      {/* =========================================================
+          TRUST STRIP
+      ========================================================= */}
+      <section className="border-b border-[#DDDCD3] bg-white">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 sm:grid-cols-3">
+          <TrustItem
+            icon={<Users size={18} />}
+            title="Community driven"
+            text="Listings shared by people, not agencies."
+          />
 
-      <section className="relative px-4 py-24 border-t border-zinc-900/80 pluto-section">
+          <TrustItem
+            icon={<MapPin size={18} />}
+            title="Location focused"
+            text="Search by city and neighbourhood."
+          />
 
-        {/* Ambient glow */}
+          <TrustItem
+            icon={<ShieldCheck size={18} />}
+            title="Direct connection"
+            text="Talk directly to the person who posted."
+          />
+        </div>
+      </section>
 
-        <div className="absolute top-0 left-[15%] w-[300px] h-[220px] bg-indigo-600/[0.035] blur-[120px] rounded-full pointer-events-none" />
-
-        <div className="relative max-w-6xl mx-auto">
-
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5 mb-10">
-
+      {/* =========================================================
+          RECENT LISTINGS
+      ========================================================= */}
+      <section className="bg-[#F5F3EA]">
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+          <div className="grid gap-8 lg:grid-cols-[0.7fr_1.3fr] lg:items-end">
             <div>
+              <div className="flex items-center gap-3">
+                <span className="h-px w-10 bg-[#173F2B]" />
 
-              <p className="text-indigo-400 text-sm font-medium mb-2">
-                Fresh listings
-              </p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#55745F]">
+                  Fresh from the community
+                </p>
+              </div>
 
-              <h2 className="text-3xl md:text-4xl font-bold">
-                Rooms people are sharing
+              <h2 className="mt-4 max-w-lg text-3xl font-bold leading-tight tracking-[-0.035em] text-[#171A18] sm:text-4xl">
+                Places people are
+                <span className="text-[#173F2B]">
+                  {" "}
+                  sharing right now.
+                </span>
               </h2>
-
-              <p className="text-zinc-500 mt-2">
-                Explore the latest spaces posted by the community.
-              </p>
-
             </div>
 
-            <button
-              onClick={() => navigate("/find-rooms")}
-              className="group flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition"
-            >
-              View all rooms
+            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+              <p className="max-w-md text-sm leading-6 text-[#777B75]">
+                Browse the latest spaces added to Pluto.
+                Every listing has its own details,
+                location and contact information.
+              </p>
 
-              <ArrowRight
-                size={17}
-                className="group-hover:translate-x-1 transition-transform"
-              />
-            </button>
+              <button
+                type="button"
+                onClick={() => navigate("/find-rooms")}
+                className="group flex w-fit shrink-0 items-center gap-2 border-b border-[#B9B9AF] pb-1 text-sm font-bold text-[#26372C] transition hover:border-[#173F2B] hover:text-[#173F2B]"
+              >
+                See all rooms
 
+                <ArrowRight
+                  size={16}
+                  className="transition-transform group-hover:translate-x-1"
+                />
+              </button>
+            </div>
           </div>
 
-          {rooms.length > 0 ? (
-
+          {loading ? (
+            <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+              <HomeCardSkeleton />
+              <HomeCardSkeleton />
+              <HomeCardSkeleton />
+            </div>
+          ) : rooms.length > 0 ? (
             <motion.div
               initial="hidden"
               whileInView="visible"
               viewport={{
                 once: true,
-                amount: 0.2,
+                amount: 0.15,
               }}
               variants={{
                 hidden: {},
                 visible: {
                   transition: {
-                    staggerChildren: 0.15,
+                    staggerChildren: 0.1,
                   },
                 },
               }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-6"
+              className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
             >
-
               {rooms.map((room) => (
-
                 <motion.div
                   key={room._id}
                   variants={{
                     hidden: {
                       opacity: 0,
-                      y: 40,
+                      y: 18,
                     },
                     visible: {
                       opacity: 1,
                       y: 0,
                       transition: {
-                        duration: 0.6,
-                        ease: "easeOut",
+                        duration: 0.45,
                       },
                     },
                   }}
-                  whileHover={{
-                    y: -10,
-                    scale: 1.02,
-                  }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 20,
-                  }}
-                  onClick={() =>
-                    navigate(`/rooms/${room._id}`)
-                  }
-                  className="group cursor-pointer bg-zinc-950/80 backdrop-blur-xl border border-zinc-800/80 rounded-2xl overflow-hidden hover:border-indigo-500/40 hover:shadow-[0_20px_60px_rgba(99,102,241,0.10)] transition-all duration-300"
                 >
-
-                  {/* Image */}
-
-                  <div className="h-52 bg-zinc-900 relative overflow-hidden">
-
-                    {room.images?.length > 0 ? (
-
-                      <img
-                        src={room.images[0]}
-                        alt={room.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-
-                    ) : (
-
-                      <div className="absolute inset-0 flex items-center justify-center">
-
-                        <HomeIcon
-                          size={45}
-                          className="text-zinc-800 group-hover:text-indigo-500/30 group-hover:scale-110 transition-all duration-500"
-                        />
-
-                      </div>
-
-                    )}
-
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
-
-                    <span className="absolute top-4 left-4 text-xs bg-black/70 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full text-indigo-300">
-                      {room.roomType}
-                    </span>
-
-                  </div>
-
-                  {/* Content */}
-
-                  <div className="p-5">
-
-                    <h3 className="text-xl font-semibold group-hover:text-indigo-300 transition">
-                      {room.title}
-                    </h3>
-
-                    <div className="flex items-center gap-2 text-sm text-zinc-500 mt-2">
-
-                      <MapPin size={15} />
-
-                      {room.location.locality},{" "}
-                      {room.location.city}
-
-                    </div>
-
-                    <div className="flex items-end justify-between mt-6">
-
-                      <div>
-
-                        <p className="text-2xl font-bold">
-                          ₹{room.rent}
-                        </p>
-
-                        <p className="text-xs text-zinc-600">
-                          per month
-                        </p>
-
-                      </div>
-
-                      <ArrowRight
-                        size={20}
-                        className="text-zinc-600 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all"
-                      />
-
-                    </div>
-
-                  </div>
-
+                  <RoomCard room={room} />
                 </motion.div>
-
               ))}
-
             </motion.div>
-
           ) : (
-
-            <div className="bg-zinc-950/60 border border-zinc-800/80 rounded-2xl p-12 text-center backdrop-blur-xl">
-
-              <HomeIcon
-                size={40}
-                className="mx-auto text-zinc-700"
-              />
-
-              <p className="text-zinc-500 mt-4">
-                No rooms posted yet.
-              </p>
-
-            </div>
-
-          )}
-
-        </div>
-      </section>
-
-      {/* =====================================================
-          COMMUNITY
-      ===================================================== */}
-
-      <section className="relative px-4 py-24 pluto-section">
-
-        <div className="absolute right-[5%] top-[20%] w-[350px] h-[300px] bg-purple-600/[0.025] blur-[130px] rounded-full pointer-events-none" />
-
-        <div className="relative max-w-6xl mx-auto">
-
-          <div className="grid md:grid-cols-3 gap-6">
-
-            {/* Card 1 */}
-
-            <motion.div
-              whileHover={{ y: -6 }}
-              className="group bg-zinc-950/75 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-7 hover:border-indigo-500/25 hover:bg-zinc-900/70 transition-all duration-300"
-            >
-
-              <div className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center">
-                <Users
-                  size={22}
-                  className="text-indigo-400"
-                />
+            <div className="mt-10 border border-[#D9D8CF] bg-white px-6 py-16 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
+                <HomeIcon size={23} />
               </div>
 
-              <h3 className="text-xl font-semibold mt-6">
-                Built by the community
+              <h3 className="mt-5 text-lg font-bold text-[#171A18]">
+                No listings yet
               </h3>
 
-              <p className="text-zinc-500 mt-3 leading-6">
-                Anyone can share a room and help someone find
-                their next place.
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#777B75]">
+                Be the first person to share a space
+                with the Pluto community.
               </p>
-
-            </motion.div>
-
-            {/* Card 2 */}
-
-            <motion.div
-              whileHover={{ y: -6 }}
-              className="group bg-zinc-950/75 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-7 hover:border-purple-500/25 hover:bg-zinc-900/70 transition-all duration-300"
-            >
-
-              <div className="w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/15 flex items-center justify-center">
-                <MapPin
-                  size={22}
-                  className="text-purple-400"
-                />
-              </div>
-
-              <h3 className="text-xl font-semibold mt-6">
-                Search by location
-              </h3>
-
-              <p className="text-zinc-500 mt-3 leading-6">
-                Find rooms around your preferred city or locality
-                without endless searching.
-              </p>
-
-            </motion.div>
-
-            {/* Card 3 */}
-
-            <motion.div
-              whileHover={{ y: -6 }}
-              className="group bg-zinc-950/75 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-7 hover:border-pink-500/25 hover:bg-zinc-900/70 transition-all duration-300"
-            >
-
-              <div className="w-11 h-11 rounded-xl bg-pink-500/10 border border-pink-500/15 flex items-center justify-center">
-                <ShieldCheck
-                  size={22}
-                  className="text-pink-400"
-                />
-              </div>
-
-              <h3 className="text-xl font-semibold mt-6">
-                Direct connection
-              </h3>
-
-              <p className="text-zinc-500 mt-3 leading-6">
-                Contact the person who posted the room directly.
-                No unnecessary middle layer.
-              </p>
-
-            </motion.div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* =====================================================
-          CTA
-      ===================================================== */}
-
-      <section className="relative px-4 pb-24">
-
-        <div className="max-w-6xl mx-auto">
-
-          <div className="relative overflow-hidden rounded-3xl border border-zinc-800/80 bg-gradient-to-br from-zinc-950 via-zinc-950 to-indigo-950/20 p-8 md:p-14">
-
-            {/* CTA glows */}
-
-            <div className="absolute -top-40 -right-32 w-[420px] h-[420px] bg-indigo-600/10 blur-[130px] rounded-full" />
-
-            <div className="absolute -bottom-40 left-[25%] w-[300px] h-[250px] bg-purple-600/[0.05] blur-[120px] rounded-full" />
-
-            {/* Content */}
-
-            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-8">
-
-              <div>
-
-                <p className="text-indigo-400 text-sm font-medium">
-                  Have a room?
-                </p>
-
-                <h2 className="text-3xl md:text-4xl font-bold mt-2">
-                  Share it with Pluto.
-                </h2>
-
-                <p className="text-zinc-500 mt-3 max-w-xl">
-                  Post your room and help someone discover a
-                  better place to live.
-                </p>
-
-              </div>
 
               <button
+                type="button"
                 onClick={() => navigate("/add-room")}
-                className="shrink-0 flex items-center justify-center gap-2 bg-white text-black hover:bg-zinc-200 px-7 py-3.5 rounded-xl font-semibold transition-all duration-300 hover:shadow-[0_0_35px_rgba(255,255,255,0.08)]"
+                className="mt-6 inline-flex items-center gap-2 bg-[#173F2B] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#102F20]"
               >
-                Post a Room
-                <ArrowRight size={18} />
+                <Plus size={16} />
+                Post a room
               </button>
-
             </div>
-
-          </div>
-
+          )}
         </div>
       </section>
 
+      {/* =========================================================
+          HOW IT WORKS
+      ========================================================= */}
+      <section className="border-y border-[#DDDCD3] bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+          <div className="grid gap-12 lg:grid-cols-[0.7fr_1.3fr]">
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-[#E6B84A]" />
+
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#55745F]">
+                  How Pluto works
+                </p>
+              </div>
+
+              <h2 className="mt-4 max-w-md text-3xl font-bold leading-tight tracking-[-0.035em] text-[#171A18] sm:text-4xl">
+                From searching to
+                <span className="text-[#173F2B]">
+                  {" "}
+                  moving in.
+                </span>
+              </h2>
+
+              <p className="mt-5 max-w-md text-sm leading-6 text-[#777B75]">
+                No complicated process. Pluto gives you
+                the tools to discover a place and connect
+                with the person behind it.
+              </p>
+            </div>
+
+            <div className="border-y border-[#DDDCD3]">
+              <HowStep
+                number="01"
+                title="Search your area"
+                text="Enter a city or locality and discover rooms available around the places you care about."
+              />
+
+              <HowStep
+                number="02"
+                title="Compare real listings"
+                text="See rent, room type, amenities, photos and location before deciding what interests you."
+              />
+
+              <HowStep
+                number="03"
+                title="Connect directly"
+                text="Contact the person who posted the room and continue the conversation directly."
+                last
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================
+          COMMUNITY / POST CTA
+      ========================================================= */}
+      <section className="bg-[#173F2B]">
+        <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8 lg:px-10 lg:py-16">
+          <div className="grid items-center gap-10 lg:grid-cols-[1fr_auto]">
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center bg-[#E6B84A] text-[#173F2B]">
+                  <Plus size={17} strokeWidth={2.5} />
+                </span>
+
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#D8E0D8]">
+                  Share a space
+                </p>
+              </div>
+
+              <h2 className="mt-5 max-w-2xl text-3xl font-bold leading-tight tracking-[-0.035em] text-white sm:text-4xl">
+                Have a room someone else
+                <br className="hidden sm:block" />
+                could call home?
+              </h2>
+
+              <p className="mt-4 max-w-xl text-sm leading-6 text-[#C1CCC2]">
+                Post the details on Pluto and let people
+                searching in your area discover your
+                space.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => navigate("/add-room")}
+              className="group flex w-fit items-center gap-3 bg-[#E6B84A] px-6 py-4 text-sm font-bold text-[#173F2B] transition hover:bg-[#F0C75B]"
+            >
+              Post a room
+
+              <ArrowRight
+                size={17}
+                className="transition-transform group-hover:translate-x-1"
+              />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================
+          SMALL FOOTER NOTE
+      ========================================================= */}
+      <section className="border-t border-[#DDDCD3] bg-[#F5F3EA]">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center bg-[#173F2B] text-[#E6B84A]">
+              <HomeIcon size={13} />
+            </span>
+
+            <span className="text-xs font-bold tracking-wide text-[#34483A]">
+              Pluto
+            </span>
+          </div>
+
+          <p className="text-xs text-[#8A8D87]">
+            Find a place. Share a place. Connect.
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+};
+
+/* =============================================================
+   MAP PIN
+============================================================= */
+
+const MapPinVisual = ({
+  className = "",
+  active = false,
+  yellow = false,
+}) => {
+  return (
+    <div
+      className={`
+        absolute
+        ${className}
+        flex
+        h-9
+        w-9
+        items-center
+        justify-center
+        rounded-full
+        border-2
+        border-white
+        shadow-[0_5px_15px_rgba(23,63,43,0.18)]
+        ${
+          active
+            ? "bg-[#173F2B] text-[#E6B84A]"
+            : yellow
+            ? "bg-[#E6B84A] text-[#173F2B]"
+            : "bg-white text-[#173F2B]"
+        }
+      `}
+    >
+      <MapPin size={15} strokeWidth={2.5} />
+
+      {active && (
+        <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border border-white bg-[#C96B45]" />
+      )}
+    </div>
+  );
+};
+
+/* =============================================================
+   TRUST ITEM
+============================================================= */
+
+const TrustItem = ({ icon, title, text }) => {
+  return (
+    <div className="flex items-center gap-4 border-[#DDDCD3] px-5 py-6 sm:border-r sm:px-7 last:border-r-0">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
+        {icon}
+      </div>
+
+      <div>
+        <p className="text-sm font-bold text-[#26372C]">
+          {title}
+        </p>
+
+        <p className="mt-1 text-xs leading-5 text-[#81857F]">
+          {text}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/* =============================================================
+   HOW STEP
+============================================================= */
+
+const HowStep = ({
+  number,
+  title,
+  text,
+  last = false,
+}) => {
+  return (
+    <div
+      className={`
+        flex
+        gap-5
+        py-7
+        sm:gap-8
+        ${!last ? "border-b border-[#DDDCD3]" : ""}
+      `}
+    >
+      <span className="w-8 shrink-0 pt-1 text-xs font-bold tracking-[0.12em] text-[#C96B45]">
+        {number}
+      </span>
+
+      <div className="min-w-0">
+        <div className="flex items-start gap-3">
+          <h3 className="text-lg font-bold text-[#171A18]">
+            {title}
+          </h3>
+
+          <Check
+            size={17}
+            className="mt-1 shrink-0 text-[#173F2B]"
+          />
+        </div>
+
+        <p className="mt-2 max-w-xl text-sm leading-6 text-[#777B75]">
+          {text}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/* =============================================================
+   LOADING CARD
+============================================================= */
+
+const HomeCardSkeleton = () => {
+  return (
+    <div className="overflow-hidden border border-[#DDDCD3] bg-white">
+      <div className="aspect-[4/3] animate-pulse bg-[#E4E3DB]" />
+
+      <div className="space-y-4 p-5">
+        <div className="h-5 w-3/4 animate-pulse bg-[#E4E3DB]" />
+
+        <div className="h-4 w-1/2 animate-pulse bg-[#EEEDE7]" />
+
+        <div className="border-t border-[#EEEDE7] pt-4">
+          <div className="h-7 w-1/3 animate-pulse bg-[#E4E3DB]" />
+        </div>
+
+        <div className="flex gap-2">
+          <div className="h-7 w-16 animate-pulse bg-[#EEEDE7]" />
+          <div className="h-7 w-20 animate-pulse bg-[#EEEDE7]" />
+        </div>
+      </div>
     </div>
   );
 };

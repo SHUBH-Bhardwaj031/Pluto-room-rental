@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
+  ArrowLeft,
   MapPin,
   IndianRupee,
   Phone,
@@ -13,22 +14,43 @@ import {
 import MapView from "../components/MapView";
 
 const RoomDetails = () => {
-  const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const roomId = location.state?.roomId;
 
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  // ================= FETCH ROOM =================
+  // =========================================================
+  // SCROLL TO TOP
+  // =========================================================
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // =========================================================
+  // FETCH ROOM
+  // =========================================================
 
   useEffect(() => {
     const fetchRoom = async () => {
+      if (!roomId) {
+        setMessage(
+          "Room information is missing. Please open the room from the listings."
+        );
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setMessage("");
 
         const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/rooms/${id}`
+          `${import.meta.env.VITE_API_URL}/api/rooms/${roomId}`
         );
 
         setRoom(response.data.room);
@@ -45,49 +67,90 @@ const RoomDetails = () => {
     };
 
     fetchRoom();
-  }, [id]);
+  }, [roomId]);
 
-  // ================= LOADING =================
+  // =========================================================
+  // LOADING
+  // =========================================================
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-[#F5F3EA]">
+        <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-10">
+          <div className="animate-pulse">
 
-          <div className="w-10 h-10 border-2 border-zinc-800 border-t-indigo-500 rounded-full animate-spin mx-auto" />
+            <div className="mb-8 h-5 w-28 bg-[#E1E2D9]" />
 
-          <p className="text-zinc-500 text-sm mt-4">
-            Loading room details...
-          </p>
+            <div className="h-[320px] bg-[#E5E4DC] md:h-[520px]" />
 
+            <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+              <div>
+                <div className="h-9 w-3/4 bg-[#E1E2D9]" />
+                <div className="mt-4 h-5 w-1/3 bg-[#E1E2D9]" />
+                <div className="mt-8 h-32 bg-[#E1E2D9]" />
+              </div>
+
+              <div className="h-64 bg-[#E1E2D9]" />
+            </div>
+
+          </div>
         </div>
       </div>
     );
   }
 
-  // ================= ERROR =================
+  // =========================================================
+  // ERROR
+  // =========================================================
 
   if (message || !room) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F3EA] px-5">
+        <div className="max-w-md text-center">
 
-        <div className="text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
+            <Home size={28} />
+          </div>
 
-          <h2 className="text-xl font-semibold">
+          <h2 className="mt-6 text-2xl font-bold text-[#171A18]">
             Room not found
           </h2>
 
-          <p className="text-red-400 text-sm mt-2">
-            {message || "This room may no longer be available."}
+          <p className="mt-3 text-sm leading-6 text-[#747872]">
+            {message ||
+              "This room may no longer be available."}
           </p>
 
-        </div>
+          <button
+            type="button"
+            onClick={() => navigate("/find-rooms")}
+            className="
+              mt-7
+              inline-flex
+              items-center
+              gap-2
+              bg-[#173F2B]
+              px-5
+              py-3
+              text-sm
+              font-bold
+              text-white
+              transition
+              hover:bg-[#24583D]
+            "
+          >
+            <ArrowLeft size={16} />
+            Back to rooms
+          </button>
 
+        </div>
       </div>
     );
   }
 
-  // ================= COORDINATES =================
+  // =========================================================
+  // COORDINATES
+  // =========================================================
 
   const coordinates =
     room.location?.coordinates?.coordinates;
@@ -104,13 +167,16 @@ const RoomDetails = () => {
     latitude = Number(coordinates[1]);
   }
 
-  // ================= DIRECTIONS =================
+  // =========================================================
+  // DIRECTIONS
+  // =========================================================
 
   const handleDirections = () => {
     if (!hasCoordinates) return;
 
     const googleMapsUrl =
-      `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+      `https://www.google.com/maps/dir/?api=1` +
+      `&destination=${latitude},${longitude}`;
 
     window.open(
       googleMapsUrl,
@@ -119,89 +185,197 @@ const RoomDetails = () => {
     );
   };
 
+  // =========================================================
+  // WHATSAPP
+  // =========================================================
+
+  const handleWhatsApp = () => {
+    const whatsappNumber =
+      room.contact?.whatsapp ||
+      room.contact?.phone;
+
+    if (!whatsappNumber) return;
+
+    const cleanNumber = whatsappNumber.replace(
+      /\D/g,
+      ""
+    );
+
+    const whatsappUrl =
+      `https://wa.me/${cleanNumber}`;
+
+    window.open(
+      whatsappUrl,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
+  // =========================================================
+  // CALL
+  // =========================================================
+
+  const handleCall = () => {
+    if (!room.contact?.phone) return;
+
+    window.location.href =
+      `tel:${room.contact.phone}`;
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white px-4 py-10">
+    <div className="min-h-screen bg-[#F5F3EA] text-[#171A18]">
 
-      <div className="max-w-6xl mx-auto">
+      {/* =====================================================
+          TOP BAR
+      ===================================================== */}
 
-        {/* ================================================= */}
-        {/* IMAGE */}
-        {/* ================================================= */}
+      <div className="border-b border-[#DDDCD3] bg-[#F5F3EA]">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
 
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="
+              inline-flex
+              items-center
+              gap-2
+              text-sm
+              font-bold
+              text-[#55745F]
+              transition
+              hover:text-[#173F2B]
+            "
+          >
+            <ArrowLeft size={17} />
+            Back
+          </button>
 
-          <div className="relative h-72 md:h-[480px] bg-zinc-900">
+          <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#989B94]">
+            Pluto listing
+          </span>
+
+        </div>
+      </div>
+
+      {/* =====================================================
+          MAIN
+      ===================================================== */}
+
+      <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+
+        {/* ===================================================
+            IMAGE
+        =================================================== */}
+
+        <div className="relative overflow-hidden border border-[#DDDCD3] bg-[#E9E8E0]">
+
+          <div className="relative h-[300px] sm:h-[400px] md:h-[520px]">
 
             {room.images?.length > 0 ? (
               <img
                 src={room.images[0]}
                 alt={room.title}
-                className="w-full h-full object-cover"
+                className="h-full w-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="flex h-full w-full items-center justify-center">
+                <div className="text-center">
 
-                <Home
-                  size={50}
-                  className="text-zinc-800"
-                />
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center bg-white text-[#55745F]">
+                    <Home size={30} />
+                  </div>
 
+                  <p className="mt-4 text-sm font-semibold text-[#7E827B]">
+                    No image available
+                  </p>
+
+                </div>
               </div>
             )}
 
-            {/* Room Type */}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/5" />
 
-            <span className="absolute top-5 left-5 bg-black/75 backdrop-blur-md border border-white/10 text-white text-sm px-4 py-2 rounded-full">
-              {room.roomType}
-            </span>
+            {/* Status */}
+
+            <div className="absolute bottom-5 left-5 flex flex-wrap gap-2">
+
+              <span className="bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[#26372C]">
+                {room.roomType}
+              </span>
+
+              {room.status === "available" ? (
+                <span className="flex items-center gap-2 bg-[#E6B84A] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[#173F2B]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#173F2B]" />
+                  Available
+                </span>
+              ) : (
+                <span className="bg-[#333934] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-white">
+                  Unavailable
+                </span>
+              )}
+
+            </div>
 
           </div>
-
         </div>
 
-        {/* ================================================= */}
-        {/* MAIN INFORMATION */}
-        {/* ================================================= */}
+        {/* ===================================================
+            CONTENT
+        =================================================== */}
 
-        <div className="grid lg:grid-cols-3 gap-8 mt-8">
+        <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_350px]">
 
-          {/* ================= LEFT ================= */}
+          {/* =================================================
+              LEFT
+          ================================================= */}
 
-          <div className="lg:col-span-2">
+          <div className="min-w-0">
 
             {/* Title */}
 
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-[-0.025em] text-[#171A18] sm:text-4xl lg:text-5xl">
+                {room.title}
+              </h1>
 
-              <div>
+              <div className="mt-4 flex items-center gap-2 text-[#747872]">
 
-                <h1 className="text-3xl md:text-4xl font-bold">
-                  {room.title}
-                </h1>
+                <MapPin
+                  size={18}
+                  className="shrink-0 text-[#55745F]"
+                />
 
-                <div className="flex items-center gap-2 text-zinc-500 mt-3">
+                <span className="text-sm font-medium">
+                  {room.location?.locality ||
+                    "Location"}
 
-                  <MapPin size={17} />
-
-                  <span>
-                    {room.location?.locality},{" "}
-                    {room.location?.city}
-                  </span>
-
-                </div>
+                  {room.location?.city
+                    ? `, ${room.location.city}`
+                    : ""}
+                </span>
 
               </div>
+            </div>
 
-              {/* Rent */}
+            {/* Rent */}
 
-              <div className="flex items-center text-2xl font-bold whitespace-nowrap">
+            <div className="mt-8 border-y border-[#DDDCD3] py-6">
 
-                <IndianRupee size={21} />
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
+                Monthly rent
+              </p>
 
-                {room.rent}
+              <div className="mt-1 flex items-center text-[#173F2B]">
 
-                <span className="text-sm text-zinc-600 font-normal ml-1">
-                  /month
+                <IndianRupee
+                  size={24}
+                  strokeWidth={2.5}
+                />
+
+                <span className="text-3xl font-bold">
+                  {Number(
+                    room.rent || 0
+                  ).toLocaleString("en-IN")}
                 </span>
 
               </div>
@@ -210,34 +384,43 @@ const RoomDetails = () => {
 
             {/* Description */}
 
-            <div className="mt-8">
+            <section className="mt-9">
 
-              <h2 className="text-xl font-semibold mb-3">
-                About this room
-              </h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
+                About this space
+              </p>
 
-              <p className="text-zinc-400 leading-7">
+              <p className="mt-4 whitespace-pre-line text-[15px] leading-7 text-[#4F5951]">
                 {room.description}
               </p>
 
-            </div>
+            </section>
 
             {/* Amenities */}
 
             {room.amenities?.length > 0 && (
-              <div className="mt-8">
+              <section className="mt-10">
 
-                <h2 className="text-xl font-semibold mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
                   Amenities
-                </h2>
+                </p>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="mt-4 flex flex-wrap gap-2">
 
                   {room.amenities.map(
                     (amenity, index) => (
                       <span
-                        key={index}
-                        className="px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-zinc-300"
+                        key={`${amenity}-${index}`}
+                        className="
+                          border
+                          border-[#DDE0D8]
+                          bg-white
+                          px-3
+                          py-2
+                          text-xs
+                          font-semibold
+                          text-[#526056]
+                        "
                       >
                         {amenity}
                       </span>
@@ -246,143 +429,207 @@ const RoomDetails = () => {
 
                 </div>
 
-              </div>
+              </section>
             )}
+
+            {/* Location */}
+
+            <section className="mt-10">
+
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
+                Location
+              </p>
+
+              <div className="mt-4 border border-[#DDDCD3] bg-white p-4">
+
+                <div className="mb-4 flex items-start gap-3">
+
+                  <MapPin
+                    size={19}
+                    className="mt-0.5 shrink-0 text-[#55745F]"
+                  />
+
+                  <div>
+                    <p className="text-sm font-bold text-[#26372C]">
+                      {room.location?.locality}
+                      {room.location?.city
+                        ? `, ${room.location.city}`
+                        : ""}
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-[#747872]">
+                      {room.location?.address}
+                    </p>
+                  </div>
+
+                </div>
+
+                {hasCoordinates && (
+                  <div className="overflow-hidden border border-[#E2E2DA]">
+                    <MapView
+                      latitude={latitude}
+                      longitude={longitude}
+                    />
+                  </div>
+                )}
+
+                {hasCoordinates && (
+                  <button
+                    type="button"
+                    onClick={handleDirections}
+                    className="
+                      mt-4
+                      flex
+                      w-full
+                      items-center
+                      justify-center
+                      gap-2
+                      border
+                      border-[#173F2B]
+                      bg-[#173F2B]
+                      px-4
+                      py-3
+                      text-xs
+                      font-bold
+                      uppercase
+                      tracking-[0.08em]
+                      text-white
+                      transition
+                      hover:bg-[#24583D]
+                    "
+                  >
+                    <Navigation size={15} />
+                    Get Directions
+                  </button>
+                )}
+
+              </div>
+
+            </section>
 
           </div>
 
-          {/* ================= CONTACT CARD ================= */}
+          {/* =================================================
+              CONTACT CARD
+          ================================================= */}
 
-          <div>
+          <aside>
 
-            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6">
+            <div className="sticky top-24 border border-[#D9DAD1] bg-white p-6">
 
-              <h2 className="text-lg font-semibold">
-                Contact Person
-              </h2>
-
-              <p className="text-zinc-400 mt-2">
-                {room.contact?.name}
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
+                Contact poster
               </p>
 
-              {/* Phone */}
+              <div className="mt-5">
 
-              {room.contact?.phone && (
-                <a
-                  href={`tel:${room.contact.phone}`}
-                  className="flex items-center justify-center gap-2 w-full bg-indigo-600 hover:bg-indigo-500 py-3 rounded-xl font-semibold text-sm mt-6 transition"
-                >
-                  <Phone size={17} />
-                  Call
-                </a>
-              )}
+                <p className="text-xl font-bold text-[#173F2B]">
+                  {room.contact?.name ||
+                    "Room poster"}
+                </p>
 
-              {/* WhatsApp */}
+                <p className="mt-1 text-sm text-[#747872]">
+                  Interested in this room?
+                </p>
 
-              {room.contact?.whatsapp && (
-                <a
-                  href={`https://wa.me/${room.contact.whatsapp.replace(
-                    /\D/g,
-                    ""
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 py-3 rounded-xl font-semibold text-sm mt-3 transition"
-                >
-                  <MessageCircle size={17} />
-                  WhatsApp
-                </a>
-              )}
+              </div>
+
+              <div className="mt-6 space-y-3">
+
+                {room.contact?.phone && (
+                  <button
+                    type="button"
+                    onClick={handleCall}
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      justify-center
+                      gap-2
+                      border
+                      border-[#173F2B]
+                      bg-[#173F2B]
+                      px-4
+                      py-3
+                      text-sm
+                      font-bold
+                      text-white
+                      transition
+                      hover:bg-[#24583D]
+                    "
+                  >
+                    <Phone size={17} />
+                    Call
+                  </button>
+                )}
+
+                {(room.contact?.whatsapp ||
+                  room.contact?.phone) && (
+                  <button
+                    type="button"
+                    onClick={handleWhatsApp}
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      justify-center
+                      gap-2
+                      border
+                      border-[#C8D2C8]
+                      bg-[#E9EFE7]
+                      px-4
+                      py-3
+                      text-sm
+                      font-bold
+                      text-[#173F2B]
+                      transition
+                      hover:bg-[#DDE8DC]
+                    "
+                  >
+                    <MessageCircle size={17} />
+                    WhatsApp
+                  </button>
+                )}
+
+              </div>
+
+              <div className="mt-6 border-t border-[#ECEBE4] pt-5">
+
+                <div className="flex items-start gap-3">
+
+                  <MapPin
+                    size={16}
+                    className="mt-0.5 shrink-0 text-[#C96B45]"
+                  />
+
+                  <p className="text-xs leading-5 text-[#747872]">
+                    {room.location?.address ||
+                      `${room.location?.locality || ""}${
+                        room.location?.city
+                          ? `, ${room.location.city}`
+                          : ""
+                      }`}
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="mt-5 border-t border-[#ECEBE4] pt-4">
+
+                <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-[#A0A39D]">
+                  Shared through Pluto
+                </p>
+
+              </div>
 
             </div>
 
-          </div>
+          </aside>
 
         </div>
 
-        {/* ================================================= */}
-        {/* LOCATION MAP */}
-        {/* ================================================= */}
-
-        {hasCoordinates && (
-          <section className="mt-12">
-
-            {/* Heading */}
-
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-5">
-
-              <div>
-
-                <p className="text-indigo-400 text-sm font-medium mb-1">
-                  Location
-                </p>
-
-                <h2 className="text-2xl font-bold">
-                  Where is this room?
-                </h2>
-
-                <p className="text-zinc-500 text-sm mt-2">
-                  View the exact location of this room on the map.
-                </p>
-
-              </div>
-
-              {/* Google Directions */}
-
-              <button
-                type="button"
-                onClick={handleDirections}
-                className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-5 py-3 rounded-xl font-semibold text-sm transition"
-              >
-                <Navigation size={17} />
-                Get Directions
-              </button>
-
-            </div>
-
-            {/* BIG MAP */}
-
-            <div className="rounded-2xl overflow-hidden border border-zinc-800">
-
-              <MapView
-                latitude={latitude}
-                longitude={longitude}
-                title={room.title}
-                selectable={false}
-                zoom={15}
-              />
-
-            </div>
-
-            {/* Address */}
-
-            <div className="flex items-start gap-3 mt-4 p-4 bg-zinc-950 border border-zinc-800 rounded-xl">
-
-              <MapPin
-                size={18}
-                className="text-indigo-400 mt-0.5 shrink-0"
-              />
-
-              <div>
-
-                <p className="text-sm text-zinc-300">
-                  {room.location?.address}
-                </p>
-
-                <p className="text-xs text-zinc-600 mt-1">
-                  {room.location?.locality},{" "}
-                  {room.location?.city}
-                </p>
-
-              </div>
-
-            </div>
-
-          </section>
-        )}
-
-      </div>
-
+      </main>
     </div>
   );
 };
