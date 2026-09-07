@@ -158,17 +158,96 @@ export const getRooms = async (req, res) => {
       }
     }
 
+    /*
+    =========================================================
+       PUBLIC LISTING
+
+       Phone + WhatsApp are intentionally excluded.
+
+       postedBy only exposes the user's name.
+    =========================================================
+    */
+
     const rooms = await Room.find(filter)
-      .populate("postedBy", "name email phone")
-      .sort({ createdAt: -1 });
+      .select("-contact.phone -contact.whatsapp")
+      .populate("postedBy", "name")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    /*
+    =========================================================
+       CHECK SAVED ROOMS
+    =========================================================
+
+       Browsing remains public.
+
+       If a valid token is available, we calculate
+       isSaved for the logged-in user.
+    */
+
+    let savedRoomIds = new Set();
+
+    const authHeader = req.headers.authorization;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.split(" ")[1];
+
+        const jwt = await import("jsonwebtoken");
+
+        const decoded = jwt.default.verify(
+          token,
+          process.env.JWT_SECRET
+        );
+
+        const user = await User.findById(
+          decoded.userId
+        ).select("savedRooms");
+
+        if (user) {
+          savedRoomIds = new Set(
+            user.savedRooms.map((id) =>
+              id.toString()
+            )
+          );
+        }
+      } catch (authError) {
+        /*
+         * Invalid/expired token should NOT prevent
+         * public room browsing.
+         */
+        console.log(
+          "Optional auth check skipped"
+        );
+      }
+    }
+
+    /*
+    =========================================================
+       ADD SAVED STATUS
+    =========================================================
+    */
+
+    const roomsWithSavedStatus =
+      rooms.map((room) => ({
+        ...room,
+
+        isSaved: savedRoomIds.has(
+          room._id.toString()
+        ),
+      }));
 
     res.status(200).json({
       success: true,
-      count: rooms.length,
-      rooms,
+      count: roomsWithSavedStatus.length,
+      rooms: roomsWithSavedStatus,
     });
+
   } catch (error) {
-    console.error("Get rooms error:", error);
+    console.error(
+      "Get rooms error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
@@ -179,12 +258,36 @@ export const getRooms = async (req, res) => {
 
 /* =========================================================
    GET SINGLE ROOM
+   + INCREMENT VIEW COUNT
 ========================================================= */
 
 export const getRoomById = async (req, res) => {
   try {
-    const room = await Room.findById(req.params.id)
-      .populate("postedBy", "name email phone");
+    /*
+    =========================================================
+       FIND ROOM + INCREMENT VIEWS
+    =========================================================
+
+       $inc makes the increment atomic, so concurrent
+       requests do not overwrite each other's count.
+    */
+
+    const room = await Room.findOneAndUpdate(
+      {
+        _id: req.params.id,
+      },
+      {
+        $inc: {
+          views: 1,
+        },
+      },
+      {
+        new: true,
+      }
+    ).populate(
+      "postedBy",
+      "name email"
+    );
 
     if (!room) {
       return res.status(404).json({
@@ -197,8 +300,12 @@ export const getRoomById = async (req, res) => {
       success: true,
       room,
     });
+
   } catch (error) {
-    console.error("Get room by ID error:", error);
+    console.error(
+      "Get room by ID error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
@@ -419,6 +526,7 @@ export const deleteRoom = async (req, res) => {
     });
   }
 };
+
 /* =========================================================
    SAVE ROOM
 ========================================================= */
@@ -475,7 +583,6 @@ export const saveRoom = async (req, res) => {
   }
 };
 
-
 /* =========================================================
    UNSAVE ROOM
 ========================================================= */
@@ -512,7 +619,6 @@ export const unsaveRoom = async (req, res) => {
     });
   }
 };
-
 
 /* =========================================================
    GET SAVED ROOMS

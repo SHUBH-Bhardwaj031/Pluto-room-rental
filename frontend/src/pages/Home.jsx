@@ -582,27 +582,7 @@ const Home = () => {
           </div>
         </div>
       </section>
-
-      {/* =========================================================
-          SMALL FOOTER NOTE
-      ========================================================= */}
-      <section className="border-t border-[#DDDCD3] bg-[#F5F3EA]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center bg-[#173F2B] text-[#E6B84A]">
-              <HomeIcon size={13} />
-            </span>
-
-            <span className="text-xs font-bold tracking-wide text-[#34483A]">
-              Pluto
-            </span>
-          </div>
-
-          <p className="text-xs text-[#8A8D87]">
-            Find a place. Share a place. Connect.
-          </p>
-        </div>
-      </section>
+      
     </main>
   );
 };

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+
+import ReportListing from "../components/ReportListing";
+
 import {
   ArrowLeft,
   MapPin,
@@ -9,6 +12,7 @@ import {
   MessageCircle,
   Navigation,
   Home,
+  Flag,
 } from "lucide-react";
 
 import MapView from "../components/MapView";
@@ -16,6 +20,8 @@ import MapView from "../components/MapView";
 const RoomDetails = () => {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [showReportForm, setShowReportForm] = useState(false);
 
   const roomId = location.state?.roomId;
 
@@ -37,10 +43,27 @@ const RoomDetails = () => {
 
   useEffect(() => {
     const fetchRoom = async () => {
+      const token = localStorage.getItem("plutoToken");
+
+      /*
+      =========================================================
+         LOGIN REQUIRED
+      =========================================================
+      */
+
+      if (!token) {
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
+
       if (!roomId) {
         setMessage(
           "Room information is missing. Please open the room from the listings."
         );
+
         setLoading(false);
         return;
       }
@@ -50,12 +73,43 @@ const RoomDetails = () => {
         setMessage("");
 
         const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/rooms/${roomId}`
+          `${import.meta.env.VITE_API_URL}/api/rooms/${roomId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
+
+        /*
+        =======================================================
+           ROOM FETCH ALSO INCREMENTS VIEW COUNT
+        =======================================================
+
+           Backend atomically increments `views` whenever
+           this protected endpoint is requested.
+        */
 
         setRoom(response.data.room);
       } catch (error) {
         console.error("Fetch room error:", error);
+
+        /*
+        =======================================================
+           TOKEN INVALID / EXPIRED
+        =======================================================
+        */
+
+        if (error.response?.status === 401) {
+          localStorage.removeItem("plutoToken");
+          localStorage.removeItem("plutoUser");
+
+          navigate("/login", {
+            replace: true,
+          });
+
+          return;
+        }
 
         setMessage(
           error.response?.data?.message ||
@@ -67,7 +121,7 @@ const RoomDetails = () => {
     };
 
     fetchRoom();
-  }, [roomId]);
+  }, [roomId, navigate]);
 
   // =========================================================
   // LOADING
@@ -78,7 +132,6 @@ const RoomDetails = () => {
       <div className="min-h-screen bg-[#F5F3EA]">
         <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-10">
           <div className="animate-pulse">
-
             <div className="mb-8 h-5 w-28 bg-[#E1E2D9]" />
 
             <div className="h-[320px] bg-[#E5E4DC] md:h-[520px]" />
@@ -92,7 +145,6 @@ const RoomDetails = () => {
 
               <div className="h-64 bg-[#E1E2D9]" />
             </div>
-
           </div>
         </div>
       </div>
@@ -107,7 +159,6 @@ const RoomDetails = () => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F5F3EA] px-5">
         <div className="max-w-md text-center">
-
           <div className="mx-auto flex h-16 w-16 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
             <Home size={28} />
           </div>
@@ -142,7 +193,6 @@ const RoomDetails = () => {
             <ArrowLeft size={16} />
             Back to rooms
           </button>
-
         </div>
       </div>
     );
@@ -157,7 +207,9 @@ const RoomDetails = () => {
 
   const hasCoordinates =
     Array.isArray(coordinates) &&
-    coordinates.length === 2;
+    coordinates.length === 2 &&
+    Number.isFinite(Number(coordinates[0])) &&
+    Number.isFinite(Number(coordinates[1]));
 
   let latitude = null;
   let longitude = null;
@@ -186,23 +238,58 @@ const RoomDetails = () => {
   };
 
   // =========================================================
+  // NORMALIZE WHATSAPP NUMBER
+  // =========================================================
+
+  const getWhatsAppNumber = () => {
+    const rawNumber =
+      room.contact?.whatsapp ||
+      room.contact?.phone;
+
+    if (!rawNumber) return "";
+
+    let cleanNumber = rawNumber.replace(/\D/g, "");
+
+    // Already an Indian international number
+    if (
+      cleanNumber.startsWith("91") &&
+      cleanNumber.length === 12
+    ) {
+      return cleanNumber;
+    }
+
+    // Indian number written with leading zero
+    if (
+      cleanNumber.startsWith("0") &&
+      cleanNumber.length === 11
+    ) {
+      cleanNumber = cleanNumber.substring(1);
+    }
+
+    // Standard Indian 10-digit mobile number
+    if (cleanNumber.length === 10) {
+      return `91${cleanNumber}`;
+    }
+
+    return cleanNumber;
+  };
+
+  // =========================================================
   // WHATSAPP
   // =========================================================
 
   const handleWhatsApp = () => {
-    const whatsappNumber =
-      room.contact?.whatsapp ||
-      room.contact?.phone;
+    const cleanNumber = getWhatsAppNumber();
 
-    if (!whatsappNumber) return;
+    if (!cleanNumber) return;
 
-    const cleanNumber = whatsappNumber.replace(
-      /\D/g,
-      ""
-    );
+    const messageText =
+      `Hi, I found your room "${room.title}" on Pluto. ` +
+      `I am interested in this room. Is it still available?`;
 
     const whatsappUrl =
-      `https://wa.me/${cleanNumber}`;
+      `https://wa.me/${cleanNumber}` +
+      `?text=${encodeURIComponent(messageText)}`;
 
     window.open(
       whatsappUrl,
@@ -221,6 +308,15 @@ const RoomDetails = () => {
     window.location.href =
       `tel:${room.contact.phone}`;
   };
+
+  const hasPhone = Boolean(
+    room.contact?.phone
+  );
+
+  const hasWhatsApp = Boolean(
+    room.contact?.whatsapp ||
+      room.contact?.phone
+  );
 
   return (
     <div className="min-h-screen bg-[#F5F3EA] text-[#171A18]">
@@ -357,26 +453,52 @@ const RoomDetails = () => {
               </div>
             </div>
 
-            {/* Rent */}
+            {/* =================================================
+                RENT + VIEWS
+            ================================================= */}
 
             <div className="mt-8 border-y border-[#DDDCD3] py-6">
 
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
-                Monthly rent
-              </p>
+              <div className="flex items-end justify-between gap-6">
 
-              <div className="mt-1 flex items-center text-[#173F2B]">
+                {/* Monthly Rent */}
 
-                <IndianRupee
-                  size={24}
-                  strokeWidth={2.5}
-                />
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
+                    Monthly rent
+                  </p>
 
-                <span className="text-3xl font-bold">
-                  {Number(
-                    room.rent || 0
-                  ).toLocaleString("en-IN")}
-                </span>
+                  <div className="mt-1 flex items-center text-[#173F2B]">
+
+                    <IndianRupee
+                      size={24}
+                      strokeWidth={2.5}
+                    />
+
+                    <span className="text-3xl font-bold">
+                      {Number(
+                        room.rent || 0
+                      ).toLocaleString("en-IN")}
+                    </span>
+
+                  </div>
+                </div>
+
+                {/* Views */}
+
+                <div className="text-right">
+
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
+                    Views
+                  </p>
+
+                  <p className="mt-1 text-2xl font-bold text-[#173F2B]">
+                    {Number(
+                      room.views || 0
+                    ).toLocaleString("en-IN")}
+                  </p>
+
+                </div>
 
               </div>
 
@@ -517,30 +639,41 @@ const RoomDetails = () => {
 
             <div className="sticky top-24 border border-[#D9DAD1] bg-white p-6">
 
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
-                Contact poster
-              </p>
+              {/* Header */}
 
-              <div className="mt-5">
+              <div className="flex items-start justify-between gap-4">
 
-                <p className="text-xl font-bold text-[#173F2B]">
-                  {room.contact?.name ||
-                    "Room poster"}
-                </p>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
+                    Contact poster
+                  </p>
 
-                <p className="mt-1 text-sm text-[#747872]">
-                  Interested in this room?
-                </p>
+                  <p className="mt-5 text-xl font-bold text-[#173F2B]">
+                    {room.contact?.name ||
+                      "Room poster"}
+                  </p>
+
+                  <p className="mt-1 text-sm text-[#747872]">
+                    Interested in this room?
+                  </p>
+                </div>
+
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-[#F3E9C9] text-[#173F2B]">
+                  <MessageCircle size={20} />
+                </div>
 
               </div>
 
+              {/* Contact Buttons */}
+
               <div className="mt-6 space-y-3">
 
-                {room.contact?.phone && (
+                {hasPhone && (
                   <button
                     type="button"
                     onClick={handleCall}
                     className="
+                      group
                       flex
                       w-full
                       items-center
@@ -554,21 +687,24 @@ const RoomDetails = () => {
                       text-sm
                       font-bold
                       text-white
-                      transition
+                      transition-all
                       hover:bg-[#24583D]
                     "
                   >
-                    <Phone size={17} />
-                    Call
+                    <Phone
+                      size={17}
+                      className="transition-transform group-hover:scale-105"
+                    />
+                    Call Poster
                   </button>
                 )}
 
-                {(room.contact?.whatsapp ||
-                  room.contact?.phone) && (
+                {hasWhatsApp && (
                   <button
                     type="button"
                     onClick={handleWhatsApp}
                     className="
+                      group
                       flex
                       w-full
                       items-center
@@ -582,16 +718,43 @@ const RoomDetails = () => {
                       text-sm
                       font-bold
                       text-[#173F2B]
-                      transition
+                      transition-all
+                      hover:border-[#AEBEAF]
                       hover:bg-[#DDE8DC]
                     "
                   >
-                    <MessageCircle size={17} />
-                    WhatsApp
+                    <MessageCircle
+                      size={17}
+                      className="transition-transform group-hover:scale-105"
+                    />
+                    Message on WhatsApp
                   </button>
                 )}
 
+                {!hasPhone &&
+                  !hasWhatsApp && (
+                    <div className="border border-[#E3E0D6] bg-[#F7F6F0] px-4 py-4 text-center">
+                      <p className="text-xs font-semibold text-[#747872]">
+                        Contact information is not available.
+                      </p>
+                    </div>
+                  )}
+
               </div>
+
+              {/* Safety / Contact Note */}
+
+              {(hasPhone || hasWhatsApp) && (
+                <div className="mt-5 border-l-2 border-[#E6B84A] bg-[#FBF8EA] px-4 py-3">
+                  <p className="text-[11px] leading-5 text-[#697169]">
+                    Contact the poster directly to confirm
+                    availability, rent and other details
+                    before visiting.
+                  </p>
+                </div>
+              )}
+
+              {/* Address */}
 
               <div className="mt-6 border-t border-[#ECEBE4] pt-5">
 
@@ -615,6 +778,34 @@ const RoomDetails = () => {
 
               </div>
 
+              {/* =================================================
+                  REPORT LISTING
+              ================================================= */}
+
+              <div className="mt-5 border-t border-[#ECEBE4] pt-4">
+
+                <button
+                  type="button"
+                  onClick={() => setShowReportForm(true)}
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                    text-xs
+                    font-semibold
+                    text-[#747872]
+                    transition-colors
+                    hover:text-red-600
+                  "
+                >
+                  <Flag size={14} />
+                  Report listing
+                </button>
+
+              </div>
+
+              {/* Pluto */}
+
               <div className="mt-5 border-t border-[#ECEBE4] pt-4">
 
                 <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-[#A0A39D]">
@@ -630,6 +821,18 @@ const RoomDetails = () => {
         </div>
 
       </main>
+
+      {/* =====================================================
+          REPORT MODAL
+      ===================================================== */}
+
+      {showReportForm && (
+        <ReportListing
+          roomId={roomId}
+          onClose={() => setShowReportForm(false)}
+        />
+      )}
+
     </div>
   );
 };

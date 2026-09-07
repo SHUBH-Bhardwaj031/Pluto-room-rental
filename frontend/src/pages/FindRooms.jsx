@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import {
   Search,
   SlidersHorizontal,
@@ -8,13 +14,18 @@ import {
   Home,
   ArrowUpRight,
 } from "lucide-react";
+
 import axios from "axios";
+
+import { useSearchParams } from "react-router-dom";
 
 import RoomCard from "../components/RoomCard";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const FindRooms = () => {
+  const [searchParams] = useSearchParams();
+
   const [rooms, setRooms] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -30,8 +41,25 @@ const FindRooms = () => {
   const [minRent, setMinRent] = useState("");
   const [maxRent, setMaxRent] = useState("");
 
-  // Results section reference
   const resultsSectionRef = useRef(null);
+
+  // ==========================================================
+  // READ SEARCH FROM URL
+  // ==========================================================
+
+  useEffect(() => {
+    const city =
+      searchParams.get("city") ||
+      searchParams.get("search") ||
+      "";
+
+    const decodedCity = city.trim();
+
+    if (decodedCity) {
+      setSearchInput(decodedCity);
+      setActiveSearch(decodedCity);
+    }
+  }, [searchParams]);
 
   // ==========================================================
   // FETCH ROOMS
@@ -225,7 +253,6 @@ const FindRooms = () => {
     setSearching(true);
     setError("");
 
-    // Give user visible skeleton loading
     await delay(800);
 
     setActiveSearch(
@@ -234,7 +261,6 @@ const FindRooms = () => {
 
     setSearching(false);
 
-    // Wait for result UI to render, then scroll
     scrollToResults();
   };
 
@@ -357,13 +383,16 @@ const FindRooms = () => {
 
   return (
     <main className="min-h-screen bg-[#F5F3EA] text-[#171A18]">
+
       {/* ======================================================
           HEADER / SEARCH
       ====================================================== */}
 
       <section className="border-b border-[#DDDCD3] bg-white">
         <div className="mx-auto max-w-7xl px-5 pb-9 pt-10 sm:px-8 lg:px-10 lg:pb-11 lg:pt-14">
+
           <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+
             <div>
               <div className="mb-4 flex items-center gap-3">
                 <span className="h-2 w-2 bg-[#E6B84A]" />
@@ -393,18 +422,17 @@ const FindRooms = () => {
                 Search. Explore. Connect.
               </p>
             </div>
+
           </div>
 
-          {/* ==================================================
-              SEARCH BAR
-          ================================================== */}
+          {/* SEARCH BAR */}
 
           <form
             onSubmit={handleSearch}
             className="mt-8 grid overflow-hidden border-2 border-[#C8CEC8] bg-white shadow-[0_10px_30px_rgba(23,63,43,0.07)] transition-all focus-within:border-[#173F2B] focus-within:shadow-[0_12px_34px_rgba(23,63,43,0.12)] md:grid-cols-[1fr_auto]"
           >
+
             <div className="flex min-h-[82px] items-center gap-4 bg-[#FAFAF6] px-5 py-4 transition-all focus-within:bg-white">
-              {/* SEARCH ICON */}
 
               <div className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
                 <Search
@@ -413,9 +441,8 @@ const FindRooms = () => {
                 />
               </div>
 
-              {/* INPUT */}
-
               <div className="min-w-0 flex-1">
+
                 <label
                   htmlFor="room-search"
                   className="block text-[10px] font-bold uppercase tracking-[0.15em] text-[#55745F]"
@@ -437,9 +464,8 @@ const FindRooms = () => {
                   spellCheck="false"
                   className="mt-1 block w-full border-0 border-b-2 border-[#C9CEC8] bg-transparent px-0 py-2 text-base font-semibold !text-[#171A18] caret-[#173F2B] outline-none transition-all placeholder:!text-[#858B84] focus:border-[#173F2B] focus:bg-white"
                 />
-              </div>
 
-              {/* CLEAR */}
+              </div>
 
               {searchInput && (
                 <button
@@ -456,9 +482,8 @@ const FindRooms = () => {
                   />
                 </button>
               )}
-            </div>
 
-            {/* SEARCH BUTTON */}
+            </div>
 
             <button
               type="submit"
@@ -468,7 +493,6 @@ const FindRooms = () => {
               {searching ? (
                 <>
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-
                   Searching...
                 </>
               ) : (
@@ -477,18 +501,17 @@ const FindRooms = () => {
                     size={17}
                     strokeWidth={2.5}
                   />
-
                   Search
                 </>
               )}
             </button>
+
           </form>
 
-          {/* ==================================================
-              SEARCH HINTS
-          ================================================== */}
+          {/* SEARCH HINTS */}
 
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[10px] text-[#7E847D]">
+
             <span className="font-medium">
               Try searching:
             </span>
@@ -511,27 +534,30 @@ const FindRooms = () => {
                 {item}
               </button>
             ))}
+
           </div>
+
         </div>
       </section>
 
       {/* ======================================================
-          RESULTS SECTION
+          RESULTS
       ====================================================== */}
 
       <section
         ref={resultsSectionRef}
         className="mx-auto max-w-7xl scroll-mt-24 px-5 py-8 sm:px-8 lg:px-10 lg:py-10"
       >
-        {/* RESULTS HEADER */}
 
         <div className="flex flex-col gap-4 border-b border-[#DAD9D0] pb-6 sm:flex-row sm:items-end sm:justify-between">
+
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-[#55745F]">
               Available spaces
             </p>
 
             <div className="mt-1 flex items-baseline gap-2">
+
               <h2 className="text-2xl font-bold tracking-tight text-[#171A18]">
                 {showSkeleton
                   ? "Finding..."
@@ -540,17 +566,16 @@ const FindRooms = () => {
 
               {!showSkeleton && (
                 <span className="text-sm font-medium text-[#858982]">
-                  {filteredRooms.length ===
-                  1
+                  {filteredRooms.length === 1
                     ? "room found"
                     : "rooms found"}
                 </span>
               )}
+
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* MOBILE FILTER */}
 
             <button
               type="button"
@@ -582,15 +607,16 @@ const FindRooms = () => {
                 Reset
               </button>
             )}
+
           </div>
+
         </div>
 
-        {/* ==================================================
-            ACTIVE FILTERS
-        ================================================== */}
+        {/* ACTIVE FILTERS */}
 
         {hasFilters && (
           <div className="flex flex-wrap gap-2 border-b border-[#E2E1D9] py-5">
+
             {activeSearch && (
               <FilterTag
                 label={`Search: ${activeSearch}`}
@@ -604,9 +630,7 @@ const FindRooms = () => {
               <FilterTag
                 label={roomType}
                 onRemove={() =>
-                  removeFilter(
-                    "roomType"
-                  )
+                  removeFilter("roomType")
                 }
               />
             )}
@@ -617,9 +641,7 @@ const FindRooms = () => {
                   minRent
                 ).toLocaleString("en-IN")}`}
                 onRemove={() =>
-                  removeFilter(
-                    "minRent"
-                  )
+                  removeFilter("minRent")
                 }
               />
             )}
@@ -630,23 +652,19 @@ const FindRooms = () => {
                   maxRent
                 ).toLocaleString("en-IN")}`}
                 onRemove={() =>
-                  removeFilter(
-                    "maxRent"
-                  )
+                  removeFilter("maxRent")
                 }
               />
             )}
+
           </div>
         )}
 
-        {/* ==================================================
-            CONTENT
-        ================================================== */}
+        {/* CONTENT */}
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[245px_1fr]">
-          {/* ==================================================
-              FILTER SIDEBAR
-          ================================================== */}
+
+          {/* FILTER SIDEBAR */}
 
           <aside
             className={`${
@@ -655,11 +673,13 @@ const FindRooms = () => {
                 : "hidden"
             } lg:block`}
           >
+
             <div className="sticky top-24 border-2 border-[#D5D7D1] bg-white">
-              {/* FILTER HEADER */}
 
               <div className="flex items-center justify-between border-b border-[#E2E1D9] px-5 py-4">
+
                 <div className="flex items-center gap-2.5">
+
                   <span className="flex h-8 w-8 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
                     <SlidersHorizontal
                       size={15}
@@ -669,6 +689,7 @@ const FindRooms = () => {
                   <h3 className="text-sm font-bold text-[#26372C]">
                     Refine results
                   </h3>
+
                 </div>
 
                 <button
@@ -680,12 +701,15 @@ const FindRooms = () => {
                 >
                   <X size={17} />
                 </button>
+
               </div>
 
               <div className="space-y-7 p-5">
+
                 {/* ROOM TYPE */}
 
                 <div>
+
                   <label
                     htmlFor="room-type"
                     className="mb-2.5 block text-[10px] font-bold uppercase tracking-[0.15em] text-[#747A73]"
@@ -694,6 +718,7 @@ const FindRooms = () => {
                   </label>
 
                   <div className="relative">
+
                     <select
                       id="room-type"
                       value={roomType}
@@ -738,18 +763,23 @@ const FindRooms = () => {
                       strokeWidth={2.5}
                       className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#26372C]"
                     />
+
                   </div>
+
                 </div>
 
                 {/* BUDGET */}
 
                 <div>
+
                   <label className="mb-2.5 block text-[10px] font-bold uppercase tracking-[0.15em] text-[#747A73]">
                     Monthly budget
                   </label>
 
                   <div className="grid grid-cols-2 gap-2">
+
                     <div className="relative">
+
                       <span className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm font-semibold text-[#59615A]">
                         ₹
                       </span>
@@ -766,9 +796,11 @@ const FindRooms = () => {
                         placeholder="Min"
                         className="w-full border-2 border-[#D2D6D0] bg-white py-3.5 pl-8 pr-2 text-sm font-semibold !text-[#171A18] caret-[#173F2B] outline-none transition-all placeholder:!text-[#858B84] focus:border-[#173F2B] focus:ring-2 focus:ring-[#E9EFE7]"
                       />
+
                     </div>
 
                     <div className="relative">
+
                       <span className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm font-semibold text-[#59615A]">
                         ₹
                       </span>
@@ -785,18 +817,23 @@ const FindRooms = () => {
                         placeholder="Max"
                         className="w-full border-2 border-[#D2D6D0] bg-white py-3.5 pl-8 pr-2 text-sm font-semibold !text-[#171A18] caret-[#173F2B] outline-none transition-all placeholder:!text-[#858B84] focus:border-[#173F2B] focus:ring-2 focus:ring-[#E9EFE7]"
                       />
+
                     </div>
+
                   </div>
+
                 </div>
 
                 {/* QUICK BUDGET */}
 
                 <div>
+
                   <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.15em] text-[#747A73]">
                     Quick budget
                   </p>
 
                   <div className="flex flex-wrap gap-2">
+
                     {[
                       [
                         "Under ₹5k",
@@ -836,7 +873,9 @@ const FindRooms = () => {
                         </button>
                       )
                     )}
+
                   </div>
+
                 </div>
 
                 {/* APPLY */}
@@ -850,7 +889,6 @@ const FindRooms = () => {
                   {searching ? (
                     <>
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-
                       Applying...
                     </>
                   ) : (
@@ -872,15 +910,16 @@ const FindRooms = () => {
                     Clear all
                   </button>
                 )}
+
               </div>
             </div>
+
           </aside>
 
-          {/* ==================================================
-              RESULTS GRID
-          ================================================== */}
+          {/* RESULTS GRID */}
 
           <div className="min-w-0">
+
             {showSkeleton ? (
               <LoadingGrid />
             ) : error ? (
@@ -888,8 +927,7 @@ const FindRooms = () => {
                 message={error}
                 onRetry={fetchRooms}
               />
-            ) : filteredRooms.length ===
-              0 ? (
+            ) : filteredRooms.length === 0 ? (
               <EmptyState
                 hasFilters={hasFilters}
                 onClear={clearFilters}
@@ -897,6 +935,7 @@ const FindRooms = () => {
               />
             ) : (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+
                 {filteredRooms.map(
                   (room) => (
                     <RoomCard
@@ -905,11 +944,16 @@ const FindRooms = () => {
                     />
                   )
                 )}
+
               </div>
             )}
+
           </div>
+
         </div>
+
       </section>
+
     </main>
   );
 };
@@ -924,6 +968,7 @@ const FilterTag = ({
 }) => {
   return (
     <div className="flex items-center gap-2 border border-[#C8D5C9] bg-[#E9EFE7] px-3 py-2 text-[10px] font-bold text-[#31543D]">
+
       <span>{label}</span>
 
       <button
@@ -934,6 +979,7 @@ const FilterTag = ({
       >
         <X size={12} />
       </button>
+
     </div>
   );
 };
@@ -945,6 +991,7 @@ const FilterTag = ({
 const LoadingGrid = () => {
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+
       {Array.from({
         length: 6,
       }).map((_, index) => (
@@ -952,9 +999,11 @@ const LoadingGrid = () => {
           key={index}
           className="overflow-hidden border-2 border-[#DDDCD3] bg-white"
         >
+
           <div className="aspect-[4/3] animate-pulse bg-[#E4E3DB]" />
 
           <div className="space-y-4 p-5">
+
             <div className="h-5 w-3/4 animate-pulse bg-[#E4E3DB]" />
 
             <div className="h-4 w-1/2 animate-pulse bg-[#EEEDE7]" />
@@ -964,13 +1013,18 @@ const LoadingGrid = () => {
             <div className="h-7 w-1/3 animate-pulse bg-[#E4E3DB]" />
 
             <div className="flex gap-2">
+
               <div className="h-7 w-16 animate-pulse bg-[#EEEDE7]" />
 
               <div className="h-7 w-20 animate-pulse bg-[#EEEDE7]" />
+
             </div>
+
           </div>
+
         </div>
       ))}
+
     </div>
   );
 };
@@ -985,6 +1039,7 @@ const ErrorState = ({
 }) => {
   return (
     <div className="border-2 border-[#DDDCD3] bg-white px-6 py-16 text-center">
+
       <div className="mx-auto flex h-12 w-12 items-center justify-center bg-[#F5E5DE] text-[#A95336]">
         <X size={21} />
       </div>
@@ -1004,6 +1059,7 @@ const ErrorState = ({
       >
         Try again
       </button>
+
     </div>
   );
 };
@@ -1019,6 +1075,7 @@ const EmptyState = ({
 }) => {
   return (
     <div className="border-2 border-[#D8D7CE] bg-white px-6 py-20 text-center">
+
       <div className="mx-auto flex h-14 w-14 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
         <Home size={25} />
       </div>
@@ -1045,6 +1102,7 @@ const EmptyState = ({
           Clear filters
         </button>
       )}
+
     </div>
   );
 };

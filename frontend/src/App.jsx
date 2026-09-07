@@ -1,127 +1,151 @@
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-} from "react-router-dom";
-
-import AuthProvider from "./context/AuthContext";
-import MainLayout from "./layouts/MainLayout";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 
 import Loader from "./components/Loader";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Home from "./pages/Home";
+import FindRooms from "./pages/FindRooms";
+import RoomDetails from "./pages/RoomDetails";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AddRoom from "./pages/AddRoom";
-import FindRooms from "./pages/FindRooms";
-import RoomDetails from "./pages/RoomDetails";
 import MyPosts from "./pages/MyPosts";
+import SavedRooms from "./pages/SavedRooms";
 import Notifications from "./pages/Notifications";
 import Profile from "./pages/Profile";
-import SavedRooms from "./pages/SavedRooms";
 import EditRoom from "./pages/EditRoom";
 
+import AuthProvider from "./context/AuthContext";
 
-function App() {
+/* =========================================================
+   SCROLL TO TOP
+========================================================= */
+
+const ScrollToTop = () => {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "instant",
+    });
+  }, [pathname, search]);
+
+  return null;
+};
+
+/* =========================================================
+   APP
+========================================================= */
+
+const App = () => {
   return (
-    <AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
 
-      <BrowserRouter>
-
-        {/* =========================
-            UNIVERSAL PAGE LOADER
-        ========================== */}
+        <ScrollToTop />
 
         <Loader />
 
-        {/* =========================
-            MAIN LAYOUT
-        ========================== */}
+        {/* =================================================
+            NAVBAR
+        ================================================= */}
 
-        <MainLayout>
+        <Navbar />
 
-          <Routes>
+        {/* =================================================
+            ROUTES
+        ================================================= */}
 
-            {/* =========================
-                PUBLIC ROUTES
-            ========================== */}
+        <Routes>
 
-            <Route
-              path="/"
-              element={<Home />}
-            />
+          {/* =================================================
+              PUBLIC ROUTES
+          ================================================= */}
 
-            <Route
-              path="/find-rooms"
-              element={<FindRooms />}
-            />
+          <Route
+            path="/"
+            element={<Home />}
+          />
+
+          <Route
+            path="/home"
+            element={<Home />}
+          />
+
+          <Route
+            path="/find-rooms"
+            element={<FindRooms />}
+          />
+
+          <Route
+            path="/login"
+            element={<Login />}
+          />
+
+          <Route
+            path="/signup"
+            element={<Signup />}
+          />
+
+          {/* =================================================
+              PROTECTED ROUTES
+          ================================================= */}
+
+          <Route element={<ProtectedRoute />}>
 
             <Route
               path="/rooms/view-details"
               element={<RoomDetails />}
             />
 
-            {/* =========================
-                AUTHENTICATION
-            ========================== */}
-
             <Route
-              path="/login"
-              element={<Login />}
+              path="/add-room"
+              element={<AddRoom />}
             />
 
             <Route
-              path="/signup"
-              element={<Signup />}
+              path="/my-posts"
+              element={<MyPosts />}
             />
 
-            {/* =========================
-                PROTECTED ROUTES
-            ========================== */}
+            <Route
+              path="/saved-rooms"
+              element={<SavedRooms />}
+            />
 
-            <Route element={<ProtectedRoute />}>
+            <Route
+              path="/notifications"
+              element={<Notifications />}
+            />
 
-              <Route
-                path="/add-room"
-                element={<AddRoom />}
-              />
+            <Route
+              path="/profile"
+              element={<Profile />}
+            />
 
-              <Route
-                path="/my-posts"
-                element={<MyPosts />}
-              />
+            <Route
+              path="/edit-room/:id"
+              element={<EditRoom />}
+            />
 
-              <Route
-                path="/saved-rooms"
-                element={<SavedRooms />}
-              />
+          </Route>
 
-              <Route
-                path="/notifications"
-                element={<Notifications />}
-              />
+        </Routes>
 
-              <Route
-                path="/profile"
-                element={<Profile />}
-              />
+        {/* =================================================
+            FOOTER
+        ================================================= */}
 
-              <Route
-                path="/edit-room/:id"
-                element={<EditRoom />}
-              />
+        <Footer />
 
-            </Route>
-
-          </Routes>
-
-        </MainLayout>
-
-      </BrowserRouter>
-
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
-}
+};
 
 export default App;

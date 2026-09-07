@@ -1,7 +1,5 @@
 import express from "express";
-
 import multer from "multer";
-
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 import cloudinary from "../config/cloudinary.js";
@@ -104,8 +102,18 @@ router.post(
    SINGLE ROOM
 ========================================================= */
 
+/*
+ * IMPORTANT:
+ *
+ * Individual room details contain private contact
+ * information such as phone and WhatsApp.
+ *
+ * Therefore login is required.
+ */
+
 router.get(
   "/:id",
+  authMiddleware,
   getRoomById
 );
 

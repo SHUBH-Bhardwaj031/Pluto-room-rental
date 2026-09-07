@@ -11,11 +11,21 @@ import axios from "axios";
 
 import googleMapsIcon from "../assets/google-maps-icon.png";
 
-const RoomCard = ({ room }) => {
+const RoomCard = ({ room, onUnsave }) => {
   const navigate = useNavigate();
 
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(
+    Boolean(room.isSaved)
+  );
+
   const [saving, setSaving] = useState(false);
+
+  /*
+   * Sync saved state if room data changes
+   */
+  useEffect(() => {
+    setSaved(Boolean(room.isSaved));
+  }, [room.isSaved]);
 
   const coordinates =
     room.location?.coordinates?.coordinates;
@@ -26,50 +36,19 @@ const RoomCard = ({ room }) => {
     typeof coordinates[0] === "number" &&
     typeof coordinates[1] === "number";
 
-  useEffect(() => {
-    let mounted = true;
-
-    const checkSavedRoom = async () => {
-      const token = localStorage.getItem("plutoToken");
-
-      if (!token) return;
-
-      try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/rooms/saved`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!mounted) return;
-
-        const savedRooms = response.data.rooms || [];
-
-        setSaved(
-          savedRooms.some(
-            (savedRoom) => savedRoom._id === room._id
-          )
-        );
-      } catch (error) {
-        console.error("Check saved room error:", error);
-      }
-    };
-
-    checkSavedRoom();
-
-    return () => {
-      mounted = false;
-    };
-  }, [room._id]);
+  /* =========================================================
+     SAVE / UNSAVE
+  ========================================================= */
 
   const handleSave = async (e) => {
     e.stopPropagation();
 
-    const token = localStorage.getItem("plutoToken");
+    const token =
+      localStorage.getItem("plutoToken");
 
+    /*
+     * User must login to save a room
+     */
     if (!token) {
       navigate("/login");
       return;
@@ -81,6 +60,9 @@ const RoomCard = ({ room }) => {
       setSaving(true);
 
       if (saved) {
+        /*
+         * UNSAVE
+         */
         await axios.delete(
           `${import.meta.env.VITE_API_URL}/api/rooms/${room._id}/save`,
           {
@@ -91,7 +73,17 @@ const RoomCard = ({ room }) => {
         );
 
         setSaved(false);
+
+        /*
+         * If this card is being displayed
+         * inside Saved Rooms, remove it
+         * immediately from the parent list.
+         */
+        onUnsave?.(room._id);
       } else {
+        /*
+         * SAVE
+         */
         await axios.post(
           `${import.meta.env.VITE_API_URL}/api/rooms/${room._id}/save`,
           {},
@@ -105,7 +97,10 @@ const RoomCard = ({ room }) => {
         setSaved(true);
       }
     } catch (error) {
-      console.error("Save/unsave room error:", error);
+      console.error(
+        "Save/unsave room error:",
+        error
+      );
 
       alert(
         error.response?.data?.message ||
@@ -116,8 +111,23 @@ const RoomCard = ({ room }) => {
     }
   };
 
+  /* =========================================================
+     DIRECTIONS
+  ========================================================= */
+
   const handleDirections = (e) => {
     e.stopPropagation();
+
+    const token =
+      localStorage.getItem("plutoToken");
+
+    /*
+     * User must login to get directions
+     */
+    if (!token) {
+      navigate("/login");
+      return;
+    }
 
     if (!hasCoordinates) return;
 
@@ -125,6 +135,7 @@ const RoomCard = ({ room }) => {
       alert(
         "Location detection is not supported by your browser."
       );
+
       return;
     }
 
@@ -136,8 +147,10 @@ const RoomCard = ({ room }) => {
         const currentLongitude =
           position.coords.longitude;
 
-        const [roomLongitude, roomLatitude] =
-          coordinates;
+        const [
+          roomLongitude,
+          roomLatitude,
+        ] = coordinates;
 
         const googleMapsUrl =
           `https://www.google.com/maps/dir/?api=1` +
@@ -151,22 +164,31 @@ const RoomCard = ({ room }) => {
         );
       },
       (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
+        if (
+          error.code ===
+          error.PERMISSION_DENIED
+        ) {
           alert(
             "Location permission denied. Please allow location access and try again."
           );
         } else if (
-          error.code === error.POSITION_UNAVAILABLE
+          error.code ===
+          error.POSITION_UNAVAILABLE
         ) {
           alert(
             "Your current location could not be detected."
           );
-        } else if (error.code === error.TIMEOUT) {
+        } else if (
+          error.code ===
+          error.TIMEOUT
+        ) {
           alert(
             "Location detection timed out. Please try again."
           );
         } else {
-          alert("Unable to detect your current location.");
+          alert(
+            "Unable to detect your current location."
+          );
         }
       },
       {
@@ -176,6 +198,10 @@ const RoomCard = ({ room }) => {
       }
     );
   };
+
+  /* =========================================================
+     ROOM DETAILS
+  ========================================================= */
 
   /*
    * IMPORTANT
@@ -187,7 +213,19 @@ const RoomCard = ({ room }) => {
    * Room ID:
    * passed through React Router state
    */
+
   const openRoomDetails = () => {
+    const token =
+      localStorage.getItem("plutoToken");
+
+    /*
+     * User must login to view room details
+     */
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
     navigate("/rooms/view-details", {
       state: {
         roomId: room._id,
@@ -276,7 +314,10 @@ const RoomCard = ({ room }) => {
           )}
         </div>
 
-        {/* Save */}
+        {/* =====================================================
+            SAVE BUTTON
+        ===================================================== */}
+
         <button
           type="button"
           onClick={handleSave}
@@ -305,18 +346,28 @@ const RoomCard = ({ room }) => {
             backdrop-blur-sm
             transition-all
             duration-200
+
             ${
               saved
                 ? "border-[#173F2B] bg-[#173F2B] text-[#E6B84A]"
                 : "border-white/80 bg-white text-[#26372C] hover:bg-[#E6B84A] hover:text-[#173F2B]"
             }
-            ${saving ? "cursor-wait opacity-60" : ""}
+
+            ${
+              saving
+                ? "cursor-wait opacity-60"
+                : ""
+            }
           `}
         >
           <Bookmark
             size={18}
             strokeWidth={2}
-            fill={saved ? "currentColor" : "none"}
+            fill={
+              saved
+                ? "currentColor"
+                : "none"
+            }
           />
         </button>
       </div>
@@ -343,11 +394,8 @@ const RoomCard = ({ room }) => {
 
               <span className="truncate text-xs font-medium text-[#747872]">
                 {room.location?.locality ||
-                  "Location"}
-
-                {room.location?.city
-                  ? `, ${room.location.city}`
-                  : ""}
+                  room.location?.city ||
+                  "Location unavailable"}
               </span>
             </div>
           </div>
@@ -361,8 +409,8 @@ const RoomCard = ({ room }) => {
               items-center
               justify-center
               border
-              border-[#E1E0D7]
-              bg-[#F7F6F0]
+              border-[#E0E1D9]
+              bg-[#F8F7F2]
               text-[#55745F]
               transition-all
               duration-300
@@ -394,9 +442,9 @@ const RoomCard = ({ room }) => {
               />
 
               <span className="text-[23px] font-bold tracking-[-0.025em]">
-                {Number(room.rent || 0).toLocaleString(
-                  "en-IN"
-                )}
+                {Number(
+                  room.rent || 0
+                ).toLocaleString("en-IN")}
               </span>
             </div>
           </div>
