@@ -8,10 +8,13 @@ import {
   Edit3,
   Eye,
   Home,
+  IndianRupee,
   Mail,
   MapPin,
   Phone,
   Plus,
+  ToggleLeft,
+  ToggleRight,
   Trash2,
   X,
 } from "lucide-react";
@@ -23,16 +26,28 @@ const Profile = () => {
 
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [deleteId, setDeleteId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [updatingStatusId, setUpdatingStatusId] =
+    useState(null);
+
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] =
+    useState("error");
+
+  /* =====================================================
+     FETCH USER LISTINGS
+  ===================================================== */
 
   const fetchMyRooms = async () => {
     try {
       setLoading(true);
       setMessage("");
 
-      const token = localStorage.getItem("plutoToken");
+      const token =
+        localStorage.getItem("plutoToken");
 
       if (!token) {
         setMessage("Please login first.");
@@ -49,14 +64,23 @@ const Profile = () => {
         }
       );
 
-      setRooms(response.data.rooms || []);
+      setRooms(
+        Array.isArray(response.data?.rooms)
+          ? response.data.rooms
+          : []
+      );
     } catch (error) {
-      console.error("Fetch my posts error:", error);
+      console.error(
+        "Fetch my posts error:",
+        error
+      );
 
       setMessage(
         error.response?.data?.message ||
           "Unable to load your listings."
       );
+
+      setMessageType("error");
     } finally {
       setLoading(false);
     }
@@ -66,11 +90,109 @@ const Profile = () => {
     fetchMyRooms();
   }, []);
 
+  /* =====================================================
+     UPDATE AVAILABILITY
+  ===================================================== */
+
+  const handleStatusToggle = async (room) => {
+    if (updatingStatusId) return;
+
+    const token =
+      localStorage.getItem("plutoToken");
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    const newStatus =
+      room.status === "available"
+        ? "unavailable"
+        : "available";
+
+    try {
+      setUpdatingStatusId(room._id);
+      setMessage("");
+
+      const roomData = new FormData();
+
+      roomData.append(
+        "status",
+        newStatus
+      );
+
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/rooms/${room._id}`,
+        roomData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const updatedRoom =
+        response.data?.room;
+
+      setRooms((prevRooms) =>
+        prevRooms.map((item) =>
+          item._id === room._id
+            ? {
+                ...item,
+                status:
+                  updatedRoom?.status ||
+                  newStatus,
+              }
+            : item
+        )
+      );
+
+      setMessage(
+        newStatus === "available"
+          ? "Listing is now available."
+          : "Listing marked as unavailable."
+      );
+
+      setMessageType("success");
+
+      setTimeout(() => {
+        setMessage("");
+      }, 2500);
+    } catch (error) {
+      console.error(
+        "Update listing status error:",
+        error
+      );
+
+      setMessage(
+        error.response?.data?.message ||
+          "Unable to update listing status."
+      );
+
+      setMessageType("error");
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
+  /* =====================================================
+     DELETE
+  ===================================================== */
+
   const handleDelete = async (roomId) => {
+    if (deleting) return;
+
     try {
       setDeleting(true);
+      setMessage("");
 
-      const token = localStorage.getItem("plutoToken");
+      const token =
+        localStorage.getItem("plutoToken");
+
+      if (!token) {
+        navigate("/login");
+        return;
+      }
 
       await axios.delete(
         `${import.meta.env.VITE_API_URL}/api/rooms/${roomId}`,
@@ -82,340 +204,231 @@ const Profile = () => {
       );
 
       setRooms((prev) =>
-        prev.filter((room) => room._id !== roomId)
+        prev.filter(
+          (room) => room._id !== roomId
+        )
       );
 
       setDeleteId(null);
+
+      setMessage(
+        "Listing deleted successfully."
+      );
+
+      setMessageType("success");
+
+      setTimeout(() => {
+        setMessage("");
+      }, 2500);
     } catch (error) {
-      console.error("Delete room error:", error);
+      console.error(
+        "Delete room error:",
+        error
+      );
 
       setMessage(
         error.response?.data?.message ||
           "Unable to delete this listing."
       );
+
+      setMessageType("error");
     } finally {
       setDeleting(false);
     }
   };
 
+  /* =====================================================
+     STATS
+  ===================================================== */
+
   const availableRooms = rooms.filter(
-    (room) => room.status === "available"
+    (room) =>
+      room.status === "available"
   ).length;
 
-  const unavailableRooms = rooms.filter(
-    (room) => room.status !== "available"
-  ).length;
+  const unavailableRooms =
+    rooms.length - availableRooms;
 
   const totalViews = rooms.reduce(
-    (total, room) => total + (Number(room.views) || 0),
+    (total, room) =>
+      total +
+      (Number(room.views) || 0),
     0
   );
 
-  const avatarLetter = (user?.name || "U")
+  const avatarLetter = (
+    user?.name || "U"
+  )
     .charAt(0)
     .toUpperCase();
+
+  /* =====================================================
+     LOADING
+  ===================================================== */
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#F5F3EA] text-[#171A18]">
+
+        <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:px-10">
+
+          <div className="animate-pulse">
+
+            <div className="h-3 w-32 bg-[#DDDCD3]" />
+
+            <div className="mt-5 h-10 w-60 bg-[#DDDCD3]" />
+
+            <div className="mt-3 h-4 w-80 bg-[#E5E4DC]" />
+
+          </div>
+
+          <div className="mt-10 grid gap-4 sm:grid-cols-4">
+
+            {[1, 2, 3, 4].map(
+              (item) => (
+                <div
+                  key={item}
+                  className="h-28 border border-[#DDDCD3] bg-white"
+                />
+              )
+            )}
+
+          </div>
+
+          <div className="mt-10 space-y-4">
+
+            {[1, 2, 3].map(
+              (item) => (
+                <div
+                  key={item}
+                  className="h-40 animate-pulse border-b border-[#DDDCD3] bg-[#FAF9F4]"
+                />
+              )
+            )}
+
+          </div>
+
+        </div>
+
+      </main>
+    );
+  }
+
+  /* =====================================================
+     PAGE
+  ===================================================== */
 
   return (
     <main className="min-h-screen bg-[#F5F3EA] text-[#171A18]">
 
-      {/* =====================================================
-          PAGE HEADER
-      ===================================================== */}
+      {/* =================================================
+          HEADER
+      ================================================= */}
 
-      <div className="border-b border-[#D9D8CF] bg-[#FAF9F4]">
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
+      <section className="border-b border-[#D9D8CF] bg-[#FAF9F4]">
 
-          <div className="min-h-[150px] flex flex-col md:flex-row md:items-end md:justify-between gap-8 py-8">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+
+          <div className="flex min-h-[150px] flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between">
 
             <div>
-              <p className="text-[10px] font-bold tracking-[0.22em] text-[#C96B45] uppercase mb-3">
-                Pluto / Account
-              </p>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-[-0.045em] text-[#173F2B]">
-                Your space.
-              </h1>
+              <div className="flex items-center gap-3">
 
-              <p className="mt-3 text-sm text-[#747872] max-w-xl">
-                Manage your account and everything you've shared
-                with the Pluto community.
-              </p>
+                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#C8D2C8] bg-[#E9EFE7] text-sm font-bold text-[#173F2B]">
+                  {avatarLetter}
+                </div>
+
+                <div>
+
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C96B45]">
+                    Your Pluto
+                  </p>
+
+                  <h1 className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-[#173F2B] sm:text-4xl">
+                    {user?.name ||
+                      "Your profile"}
+                  </h1>
+
+                </div>
+
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2">
+
+                {user?.email && (
+                  <div className="flex items-center gap-2 text-xs text-[#747872]">
+                    <Mail
+                      size={14}
+                      className="text-[#55745F]"
+                    />
+                    {user.email}
+                  </div>
+                )}
+
+                {user?.phone && (
+                  <div className="flex items-center gap-2 text-xs text-[#747872]">
+                    <Phone
+                      size={14}
+                      className="text-[#55745F]"
+                    />
+                    {user.phone}
+                  </div>
+                )}
+
+              </div>
+
             </div>
 
             <button
               type="button"
-              onClick={() => navigate("/add-room")}
+              onClick={() =>
+                navigate("/add-room")
+              }
               className="
                 inline-flex
+                w-fit
                 items-center
-                justify-center
                 gap-2
-                self-start
-                md:self-auto
                 bg-[#173F2B]
-                text-white
                 px-5
                 py-3
                 text-sm
                 font-semibold
-                hover:bg-[#102F20]
+                text-white
                 transition
-                shadow-[4px_4px_0_#E6B84A]
+                hover:bg-[#102F20]
               "
             >
-              <Plus size={17} />
-              List a room
+              <Plus size={16} />
+              Add Room
             </button>
 
           </div>
 
         </div>
-      </div>
 
-      {/* =====================================================
-          MAIN
-      ===================================================== */}
+      </section>
 
-      <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-12">
+      {/* =================================================
+          CONTENT
+      ================================================= */}
 
-        {/* =====================================================
-            ACCOUNT BLOCK
-        ===================================================== */}
+      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-10">
 
-        <section className="grid lg:grid-cols-[1fr_360px] border border-[#D9D8CF] bg-[#FAF9F4]">
-
-          {/* LEFT */}
-
-          <div className="p-6 sm:p-8 lg:p-10">
-
-            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-
-              {/* AVATAR */}
-
-              <div
-                className="
-                  w-24
-                  h-24
-                  shrink-0
-                  bg-[#173F2B]
-                  text-[#F4D77A]
-                  flex
-                  items-center
-                  justify-center
-                  text-4xl
-                  font-semibold
-                  border-[6px]
-                  border-[#E9EFE7]
-                  shadow-[5px_5px_0_#E6B84A]
-                "
-              >
-                {avatarLetter}
-              </div>
-
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#747872] mb-2">
-                  Member
-                </p>
-
-                <h2 className="text-3xl sm:text-4xl font-semibold tracking-[-0.035em] text-[#173F2B]">
-                  {user?.name || "User"}
-                </h2>
-
-                <p className="mt-2 text-sm text-[#747872]">
-                  Sharing spaces with the Pluto community.
-                </p>
-              </div>
-
-            </div>
-
-            {/* CONTACT DETAILS */}
-
-            <div className="grid sm:grid-cols-2 gap-3 mt-10">
-
-              {user?.email && (
-                <div className="border border-[#D9D8CF] bg-white p-4 flex items-center gap-3">
-
-                  <div className="w-9 h-9 bg-[#E9EFE7] flex items-center justify-center shrink-0">
-                    <Mail
-                      size={16}
-                      className="text-[#173F2B]"
-                    />
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-[#A0A29C]">
-                      Email
-                    </p>
-
-                    <p className="text-sm font-medium text-[#26372C] truncate mt-1">
-                      {user.email}
-                    </p>
-                  </div>
-
-                </div>
-              )}
-
-              {user?.phone && (
-                <div className="border border-[#D9D8CF] bg-white p-4 flex items-center gap-3">
-
-                  <div className="w-9 h-9 bg-[#FFF3D3] flex items-center justify-center shrink-0">
-                    <Phone
-                      size={16}
-                      className="text-[#9A7013]"
-                    />
-                  </div>
-
-                  <div>
-                    <p className="text-[9px] uppercase tracking-[0.18em] font-bold text-[#A0A29C]">
-                      Phone
-                    </p>
-
-                    <p className="text-sm font-medium text-[#26372C] mt-1">
-                      {user.phone}
-                    </p>
-                  </div>
-
-                </div>
-              )}
-
-            </div>
-
-          </div>
-
-          {/* RIGHT — QUICK LINKS */}
-
-          <div className="border-t lg:border-t-0 lg:border-l border-[#D9D8CF] bg-[#173F2B] text-white p-6 sm:p-8">
-
-            <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#B9C9BC]">
-              Quick access
-            </p>
-
-            <div className="mt-6 divide-y divide-white/15">
-
-              <button
-                type="button"
-                onClick={() => navigate("/saved-rooms")}
-                className="
-                  w-full
-                  py-4
-                  flex
-                  items-center
-                  justify-between
-                  text-left
-                  group
-                "
-              >
-                <span className="flex items-center gap-3">
-                  <Bookmark
-                    size={17}
-                    className="text-[#E6B84A]"
-                  />
-                  <span className="text-sm font-medium">
-                    Saved rooms
-                  </span>
-                </span>
-
-                <ArrowUpRight
-                  size={15}
-                  className="text-white/40 group-hover:text-[#E6B84A] transition"
-                />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/notifications")}
-                className="
-                  w-full
-                  py-4
-                  flex
-                  items-center
-                  justify-between
-                  text-left
-                  group
-                "
-              >
-                <span className="flex items-center gap-3">
-                  <span className="w-[17px] h-[17px] border border-[#E6B84A] flex items-center justify-center">
-                    <span className="w-1.5 h-1.5 bg-[#E6B84A]" />
-                  </span>
-
-                  <span className="text-sm font-medium">
-                    Notifications
-                  </span>
-                </span>
-
-                <ArrowUpRight
-                  size={15}
-                  className="text-white/40 group-hover:text-[#E6B84A] transition"
-                />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/find-rooms")}
-                className="
-                  w-full
-                  py-4
-                  flex
-                  items-center
-                  justify-between
-                  text-left
-                  group
-                "
-              >
-                <span className="flex items-center gap-3">
-                  <Home
-                    size={17}
-                    className="text-[#E6B84A]"
-                  />
-                  <span className="text-sm font-medium">
-                    Find rooms
-                  </span>
-                </span>
-
-                <ArrowUpRight
-                  size={15}
-                  className="text-white/40 group-hover:text-[#E6B84A] transition"
-                />
-              </button>
-
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* =====================================================
+        {/* =================================================
             STATS
-        ===================================================== */}
+        ================================================= */}
 
-        <section className="mt-12">
+        <section className="border border-[#D9D8CF] bg-white">
 
-          <div className="flex items-end justify-between mb-5">
-
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#C96B45] mb-2">
-                Overview
-              </p>
-
-              <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.03em] text-[#173F2B]">
-                Your activity
-              </h2>
-            </div>
-
-            <p className="hidden sm:block text-xs text-[#8A8C86]">
-              Live from your listings
-            </p>
-
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 border-y border-[#D9D8CF]">
+          <div className="grid grid-cols-1 divide-y divide-[#D9D8CF] sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
 
             {/* TOTAL */}
 
-            <div className="py-6 sm:py-7 pr-5 sm:pr-7 border-r border-b lg:border-b-0 border-[#D9D8CF]">
+            <div className="px-5 py-6 sm:px-7">
 
-              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-[#8A8C86]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#8A8C86]">
                 Total listings
               </p>
 
@@ -423,17 +436,21 @@ const Profile = () => {
                 {rooms.length}
               </p>
 
+              <p className="mt-2 text-xs text-[#969992]">
+                Rooms you've posted
+              </p>
+
             </div>
 
             {/* AVAILABLE */}
 
-            <div className="py-6 sm:py-7 px-5 sm:px-7 lg:border-r border-b lg:border-b-0 border-[#D9D8CF]">
+            <div className="px-5 py-6 sm:px-7">
 
-              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-[#8A8C86]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#8A8C86]">
                 Available
               </p>
 
-              <div className="flex items-center gap-2 mt-3">
+              <div className="mt-3 flex items-center gap-2">
 
                 <p className="text-4xl font-semibold tracking-[-0.04em] text-[#173F2B]">
                   {availableRooms}
@@ -446,17 +463,21 @@ const Profile = () => {
 
               </div>
 
+              <p className="mt-2 text-xs text-[#969992]">
+                Visible to room seekers
+              </p>
+
             </div>
 
             {/* VIEWS */}
 
-            <div className="py-6 sm:py-7 pr-5 sm:pr-7 pl-5 sm:pl-7 lg:border-r border-[#D9D8CF]">
+            <div className="px-5 py-6 sm:px-7">
 
-              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-[#8A8C86]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#8A8C86]">
                 Total views
               </p>
 
-              <div className="flex items-center gap-2 mt-3">
+              <div className="mt-3 flex items-center gap-2">
 
                 <p className="text-4xl font-semibold tracking-[-0.04em] text-[#173F2B]">
                   {totalViews}
@@ -469,18 +490,26 @@ const Profile = () => {
 
               </div>
 
+              <p className="mt-2 text-xs text-[#969992]">
+                Across all your listings
+              </p>
+
             </div>
 
             {/* UNAVAILABLE */}
 
-            <div className="py-6 sm:py-7 pl-5 sm:pl-7">
+            <div className="px-5 py-6 sm:px-7">
 
-              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-[#8A8C86]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#8A8C86]">
                 Unavailable
               </p>
 
               <p className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-[#173F2B]">
                 {unavailableRooms}
+              </p>
+
+              <p className="mt-2 text-xs text-[#969992]">
+                Temporarily hidden
               </p>
 
             </div>
@@ -489,122 +518,110 @@ const Profile = () => {
 
         </section>
 
-        {/* =====================================================
+        {/* =================================================
             LISTINGS
-        ===================================================== */}
+        ================================================= */}
 
         <section className="mt-12">
 
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5">
+          <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
 
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#C96B45] mb-2">
+
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#C96B45]">
                 Published spaces
               </p>
 
-              <h2 className="text-2xl sm:text-3xl font-semibold tracking-[-0.03em] text-[#173F2B]">
+              <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#173F2B] sm:text-3xl">
                 Your rooms
               </h2>
+
             </div>
 
             <span className="text-xs font-medium text-[#747872]">
               {rooms.length}{" "}
-              {rooms.length === 1 ? "listing" : "listings"}
+              {rooms.length === 1
+                ? "listing"
+                : "listings"}
             </span>
 
           </div>
 
-          {/* ERROR */}
+          {/* =================================================
+              MESSAGE
+          ================================================= */}
 
           {message && (
-            <div className="mb-5 border border-[#E6B9A8] bg-[#FFF3EE] px-4 py-3 flex items-center justify-between gap-4">
+            <div
+              className={`mb-5 flex items-center justify-between gap-4 border px-4 py-3 ${
+                messageType === "success"
+                  ? "border-[#C8D5C9] bg-[#E9EFE7] text-[#31543D]"
+                  : "border-[#E6B9A8] bg-[#FFF3EE] text-[#A44E31]"
+              }`}
+            >
 
-              <p className="text-sm text-[#A44E31]">
+              <p className="text-sm font-medium">
                 {message}
               </p>
 
               <button
                 type="button"
-                onClick={() => setMessage("")}
-                className="text-[#A44E31] hover:text-[#71331F]"
+                onClick={() =>
+                  setMessage("")
+                }
+                className="shrink-0 opacity-70 transition hover:opacity-100"
               >
-                <X size={17} />
+                <X size={16} />
               </button>
 
             </div>
           )}
 
-          {/* LOADING */}
+          {/* =================================================
+              EMPTY
+          ================================================= */}
 
-          {loading ? (
+          {rooms.length === 0 ? (
 
-            <div className="border-y border-[#D9D8CF] py-20 bg-[#FAF9F4]">
+            <div className="border border-[#D9D8CF] bg-[#FAF9F4] px-6 py-20 text-center">
 
-              <div className="flex justify-center items-center gap-3">
-
-                <div
-                  className="
-                    w-5
-                    h-5
-                    border-2
-                    border-[#D8D9D2]
-                    border-t-[#173F2B]
-                    rounded-full
-                    animate-spin
-                  "
-                />
-
-                <span className="text-sm text-[#747872]">
-                  Loading your listings...
-                </span>
-
+              <div className="mx-auto flex h-16 w-16 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
+                <Home size={25} />
               </div>
 
-            </div>
-
-          ) : rooms.length === 0 ? (
-
-            /* EMPTY */
-
-            <div className="border border-[#D9D8CF] bg-[#FAF9F4] py-20 px-6 text-center">
-
-              <div className="w-16 h-16 mx-auto bg-[#E9EFE7] flex items-center justify-center">
-                <Home
-                  size={24}
-                  className="text-[#173F2B]"
-                />
-              </div>
-
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold text-[#C96B45] mt-6">
+              <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.18em] text-[#C96B45]">
                 Nothing here yet
               </p>
 
-              <h3 className="text-2xl font-semibold tracking-[-0.025em] text-[#173F2B] mt-2">
+              <h3 className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-[#173F2B]">
                 Share your first room
               </h3>
 
-              <p className="text-sm text-[#747872] max-w-md mx-auto leading-6 mt-3">
-                Have a room, flat or PG to share? Put it on Pluto
-                and let people nearby discover it.
+              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#747872]">
+                Have a room, flat or PG to share?
+                Put it on Pluto and let people
+                nearby discover it.
               </p>
 
               <button
                 type="button"
-                onClick={() => navigate("/add-room")}
+                onClick={() =>
+                  navigate("/add-room")
+                }
                 className="
                   mt-7
                   inline-flex
                   items-center
                   gap-2
                   bg-[#173F2B]
-                  text-white
                   px-5
                   py-3
                   text-sm
                   font-semibold
-                  hover:bg-[#102F20]
-                  transition
+                  text-white
                   shadow-[4px_4px_0_#E6B84A]
+                  transition
+                  hover:bg-[#102F20]
                 "
               >
                 <Plus size={17} />
@@ -615,256 +632,412 @@ const Profile = () => {
 
           ) : (
 
+            /* =================================================
+               LISTING ROWS
+            ================================================= */
+
             <div className="border-t border-[#D9D8CF]">
 
-              {rooms.map((room) => (
+              {rooms.map((room) => {
 
-                <article
-                  key={room._id}
-                  className="
-                    group
-                    grid
-                    grid-cols-1
-                    md:grid-cols-[210px_1fr_auto]
-                    gap-5
-                    md:gap-7
-                    py-5
-                    border-b
-                    border-[#D9D8CF]
-                    hover:bg-[#FAF9F4]
-                    transition
-                  "
-                >
+                const isAvailable =
+                  room.status ===
+                  "available";
 
-                  {/* IMAGE */}
+                const isUpdating =
+                  updatingStatusId ===
+                  room._id;
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate(`/rooms/${room._id}`)
-                    }
+                return (
+                  <article
+                    key={room._id}
                     className="
-                      relative
-                      h-48
-                      md:h-32
-                      w-full
-                      md:w-[210px]
-                      overflow-hidden
-                      bg-[#E9E8E0]
-                      text-left
+                      group
+                      grid
+                      grid-cols-1
+                      gap-5
+                      border-b
+                      border-[#D9D8CF]
+                      py-5
+                      transition
+                      hover:bg-[#FAF9F4]
+                      md:grid-cols-[210px_1fr_auto]
+                      md:gap-7
                     "
                   >
 
-                    {room.images?.length > 0 ? (
+                    {/* =================================================
+                        IMAGE
+                    ================================================= */}
 
-                      <img
-                        src={room.images[0]}
-                        alt={room.title}
-                        className="
-                          w-full
-                          h-full
-                          object-cover
-                          group-hover:scale-[1.035]
-                          transition-transform
-                          duration-500
-                        "
-                      />
-
-                    ) : (
-
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Home
-                          size={28}
-                          className="text-[#AAAFA8]"
-                        />
-                      </div>
-
-                    )}
-
-                    <span
-                      className={`
-                        absolute
-                        left-3
-                        bottom-3
-                        px-2.5
-                        py-1.5
-                        text-[9px]
-                        uppercase
-                        tracking-[0.12em]
-                        font-bold
-                        ${
-                          room.status === "available"
-                            ? "bg-[#FFF3C9] text-[#73530C]"
-                            : "bg-[#26372C] text-white"
-                        }
-                      `}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(
+                          `/rooms/view-details/${room._id}`
+                        )
+                      }
+                      className="
+                        relative
+                        h-48
+                        w-full
+                        overflow-hidden
+                        bg-[#E9E8E0]
+                        text-left
+                        md:h-32
+                        md:w-[210px]
+                      "
                     >
-                      {room.status === "available"
-                        ? "Available"
-                        : "Unavailable"}
-                    </span>
 
-                  </button>
+                      {room.images?.length >
+                      0 ? (
 
-                  {/* DETAILS */}
-
-                  <div className="min-w-0 flex flex-col justify-center">
-
-                    <div className="flex items-start justify-between gap-5">
-
-                      <div className="min-w-0">
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            navigate(`/rooms/${room._id}`)
-                          }
+                        <img
+                          src={room.images[0]}
+                          alt={room.title}
                           className="
-                            block
-                            max-w-full
-                            text-left
-                            text-lg
-                            sm:text-xl
-                            font-semibold
-                            tracking-[-0.025em]
-                            text-[#173F2B]
-                            truncate
-                            hover:text-[#C96B45]
-                            transition
+                            h-full
+                            w-full
+                            object-cover
+                            transition-transform
+                            duration-500
+                            group-hover:scale-[1.035]
                           "
-                        >
-                          {room.title}
-                        </button>
+                        />
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
+                      ) : (
 
-                          <span className="flex items-center gap-1.5 text-xs text-[#747872]">
-                            <MapPin size={13} />
-                            {room.location?.locality},{" "}
-                            {room.location?.city}
-                          </span>
+                        <div className="flex h-full w-full items-center justify-center">
 
-                          <span className="text-xs text-[#9A9D96]">
-                            {room.roomType}
-                          </span>
+                          <Home
+                            size={28}
+                            className="text-[#AAAFA8]"
+                          />
+
+                        </div>
+
+                      )}
+
+                      {/* IMAGE STATUS */}
+
+                      <span
+                        className={`
+                          absolute
+                          bottom-3
+                          left-3
+                          px-2.5
+                          py-1.5
+                          text-[9px]
+                          font-bold
+                          uppercase
+                          tracking-[0.12em]
+                          ${
+                            isAvailable
+                              ? "bg-[#FFF3C9] text-[#73530C]"
+                              : "bg-[#26372C] text-white"
+                          }
+                        `}
+                      >
+                        {isAvailable
+                          ? "Available"
+                          : "Unavailable"}
+                      </span>
+
+                    </button>
+
+                    {/* =================================================
+                        DETAILS
+                    ================================================= */}
+
+                    <div className="min-w-0 flex flex-col justify-center">
+
+                      <div className="flex items-start justify-between gap-5">
+
+                        <div className="min-w-0">
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigate(
+                                `/rooms/view-details/${room._id}`
+                              )
+                            }
+                            className="
+                              block
+                              max-w-full
+                              truncate
+                              text-left
+                              text-lg
+                              font-semibold
+                              tracking-[-0.025em]
+                              text-[#173F2B]
+                              transition
+                              hover:text-[#C96B45]
+                              sm:text-xl
+                            "
+                          >
+                            {room.title}
+                          </button>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+
+                            <span className="flex items-center gap-1.5 text-xs text-[#747872]">
+
+                              <MapPin
+                                size={13}
+                                className="text-[#55745F]"
+                              />
+
+                              {room.location
+                                ?.locality ||
+                                "Location"}
+
+                              {room.location
+                                ?.city
+                                ? `, ${room.location.city}`
+                                : ""}
+
+                            </span>
+
+                            <span className="text-xs text-[#969992]">
+                              {room.roomType}
+                            </span>
+
+                          </div>
+
+                        </div>
+
+                        {/* RENT */}
+
+                        <div className="shrink-0 text-right">
+
+                          <div className="flex items-center justify-end text-[#173F2B]">
+
+                            <IndianRupee
+                              size={15}
+                              strokeWidth={2.5}
+                            />
+
+                            <span className="text-lg font-bold">
+                              {Number(
+                                room.rent || 0
+                              ).toLocaleString(
+                                "en-IN"
+                              )}
+                            </span>
+
+                          </div>
+
+                          <p className="mt-0.5 text-[9px] uppercase tracking-[0.1em] text-[#969992]">
+                            / month
+                          </p>
 
                         </div>
 
                       </div>
 
-                      <div className="shrink-0 text-right">
+                      {/* META */}
 
-                        <p className="text-lg sm:text-xl font-semibold text-[#173F2B]">
-                          ₹
+                      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+
+                        <span className="flex items-center gap-1.5 text-[10px] text-[#8A8C86]">
+
+                          <Eye size={13} />
+
                           {Number(
-                            room.rent || 0
-                          ).toLocaleString("en-IN")}
-                        </p>
+                            room.views || 0
+                          ).toLocaleString(
+                            "en-IN"
+                          )}{" "}
+                          views
 
-                        <p className="text-[10px] text-[#8A8C86] uppercase tracking-wider mt-1">
-                          / month
-                        </p>
+                        </span>
+
+                        <span className="text-[10px] text-[#8A8C86]">
+                          {room.amenities
+                            ?.length || 0}{" "}
+                          amenities
+                        </span>
+
+                        {room.createdAt && (
+                          <span className="text-[10px] text-[#A0A29B]">
+                            Posted{" "}
+                            {formatDate(
+                              room.createdAt
+                            )}
+                          </span>
+                        )}
 
                       </div>
 
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-5 mt-5">
+                    {/* =================================================
+                        ACTIONS
+                    ================================================= */}
 
-                      <span className="flex items-center gap-1.5 text-xs text-[#8A8C86]">
-                        <Eye size={13} />
-                        {room.views || 0} views
-                      </span>
+                    <div className="flex flex-col justify-center gap-2 border-t border-[#E4E3DB] pt-4 md:min-w-[235px] md:border-t-0 md:pt-0">
 
-                      {room.amenities?.length > 0 && (
-                        <span className="text-xs text-[#8A8C86]">
-                          +{room.amenities.length} amenities
-                        </span>
-                      )}
-
-                    </div>
-
-                  </div>
-
-                  {/* ACTIONS */}
-
-                  <div className="flex md:flex-col items-center justify-end md:justify-center gap-2">
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(`/rooms/${room._id}`)
-                      }
-                      className="
-                        h-9
-                        px-3
-                        inline-flex
-                        items-center
-                        gap-2
-                        border
-                        border-[#C9C9C0]
-                        bg-white
-                        text-xs
-                        font-semibold
-                        text-[#26372C]
-                        hover:border-[#173F2B]
-                        hover:bg-[#E9EFE7]
-                        transition
-                      "
-                    >
-                      View
-                      <ArrowUpRight size={13} />
-                    </button>
-
-                    <div className="flex items-center gap-1">
+                      {/* STATUS TOGGLE */}
 
                       <button
                         type="button"
-                        onClick={() =>
-                          navigate(`/edit-room/${room._id}`)
+                        disabled={
+                          isUpdating
                         }
-                        title="Edit listing"
-                        className="
-                          w-9
-                          h-9
+                        onClick={() =>
+                          handleStatusToggle(
+                            room
+                          )
+                        }
+                        className={`
                           flex
+                          w-full
                           items-center
                           justify-center
-                          text-[#747872]
-                          hover:bg-[#E9EFE7]
-                          hover:text-[#173F2B]
+                          gap-2
+                          border
+                          px-3
+                          py-2.5
+                          text-[10px]
+                          font-bold
+                          uppercase
+                          tracking-[0.08em]
                           transition
-                        "
+                          disabled:cursor-wait
+                          disabled:opacity-60
+                          ${
+                            isAvailable
+                              ? "border-[#C8D5C9] bg-[#E9EFE7] text-[#31543D] hover:border-[#9EB3A2]"
+                              : "border-[#D8D7CE] bg-white text-[#747872] hover:border-[#AEB0A8]"
+                          }
+                        `}
                       >
-                        <Edit3 size={15} />
+
+                        {isUpdating ? (
+                          <>
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/20 border-t-current" />
+                            Updating...
+                          </>
+                        ) : (
+                          <>
+                            {isAvailable ? (
+                              <ToggleRight
+                                size={17}
+                              />
+                            ) : (
+                              <ToggleLeft
+                                size={17}
+                              />
+                            )}
+
+                            {isAvailable
+                              ? "Mark unavailable"
+                              : "Make available"}
+                          </>
+                        )}
+
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setDeleteId(room._id)}
-                        title="Delete listing"
-                        className="
-                          w-9
-                          h-9
-                          flex
-                          items-center
-                          justify-center
-                          text-[#747872]
-                          hover:bg-[#FFF0EA]
-                          hover:text-[#C04F2C]
-                          transition
-                        "
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {/* VIEW / EDIT / DELETE */}
+
+                      <div className="grid grid-cols-3 gap-1">
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              `/rooms/view-details/${room._id}`
+                            )
+                          }
+                          title="View listing"
+                          className="
+                            flex
+                            h-10
+                            items-center
+                            justify-center
+                            gap-1
+                            border
+                            border-[#C9C9C0]
+                            bg-white
+                            text-[#26372C]
+                            transition
+                            hover:border-[#173F2B]
+                            hover:bg-[#E9EFE7]
+                          "
+                        >
+                          <Eye size={14} />
+                          <span className="text-[9px] font-bold uppercase tracking-[0.05em]">
+                            View
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              `/edit-room/${room._id}`
+                            )
+                          }
+                          title="Edit listing"
+                          className="
+                            flex
+                            h-10
+                            items-center
+                            justify-center
+                            gap-1
+                            border
+                            border-[#C9C9C0]
+                            bg-white
+                            text-[#747872]
+                            transition
+                            hover:border-[#173F2B]
+                            hover:bg-[#E9EFE7]
+                            hover:text-[#173F2B]
+                          "
+                        >
+                          <Edit3 size={14} />
+                          <span className="text-[9px] font-bold uppercase tracking-[0.05em]">
+                            Edit
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDeleteId(
+                              room._id
+                            )
+                          }
+                          title="Delete listing"
+                          className="
+                            flex
+                            h-10
+                            items-center
+                            justify-center
+                            gap-1
+                            border
+                            border-[#E3C6BA]
+                            bg-[#FFF9F6]
+                            text-[#A85B43]
+                            transition
+                            hover:border-[#CDA18F]
+                            hover:bg-[#F8EDE8]
+                          "
+                        >
+                          <Trash2 size={14} />
+                          <span className="text-[9px] font-bold uppercase tracking-[0.05em]">
+                            Delete
+                          </span>
+                        </button>
+
+                      </div>
 
                     </div>
 
-                  </div>
-
-                </article>
-
-              ))}
+                  </article>
+                );
+              })}
 
             </div>
 
@@ -872,47 +1045,50 @@ const Profile = () => {
 
         </section>
 
-        {/* =====================================================
+        {/* =================================================
             BOTTOM CTA
-        ===================================================== */}
+        ================================================= */}
 
         <section className="mt-12 border border-[#D9D8CF] bg-[#E9EFE7]">
 
-          <div className="p-6 sm:p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex flex-col gap-6 p-6 md:flex-row md:items-center md:justify-between sm:p-8">
 
             <div>
 
-              <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#C96B45]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#C96B45]">
                 Keep sharing
               </p>
 
-              <h3 className="text-xl sm:text-2xl font-semibold tracking-[-0.025em] text-[#173F2B] mt-2">
+              <h3 className="mt-2 text-xl font-semibold tracking-[-0.025em] text-[#173F2B] sm:text-2xl">
                 Have another space to share?
               </h3>
 
-              <p className="text-sm text-[#5F6B62] mt-2">
-                Add another listing and help someone find their next place.
+              <p className="mt-2 text-sm text-[#5F6B62]">
+                Add another listing and help
+                someone find their next place.
               </p>
 
             </div>
 
             <button
               type="button"
-              onClick={() => navigate("/add-room")}
+              onClick={() =>
+                navigate("/add-room")
+              }
               className="
-                shrink-0
                 inline-flex
+                shrink-0
                 items-center
                 justify-center
                 gap-2
                 bg-[#E6B84A]
-                text-[#173F2B]
                 px-5
                 py-3
                 text-sm
                 font-bold
-                hover:bg-[#DDAF3F]
+                text-[#173F2B]
                 transition
+                hover:bg-[#DDAF3F]
               "
             >
               <Plus size={17} />
@@ -925,15 +1101,36 @@ const Profile = () => {
 
       </div>
 
-      {/* =====================================================
+      {/* =================================================
           DELETE MODAL
-      ===================================================== */}
+      ================================================= */}
 
       {deleteId && (
 
-        <div className="fixed inset-0 z-[100] bg-[#102F20]/55 backdrop-blur-sm flex items-center justify-center p-5">
+        <div
+          className="
+            fixed
+            inset-0
+            z-[100]
+            flex
+            items-center
+            justify-center
+            bg-[#102F20]/55
+            p-5
+            backdrop-blur-sm
+          "
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+                event.currentTarget &&
+              !deleting
+            ) {
+              setDeleteId(null);
+            }
+          }}
+        >
 
-          <div className="w-full max-w-md bg-[#FAF9F4] border border-[#D9D8CF] shadow-2xl">
+          <div className="w-full max-w-md border border-[#D9D8CF] bg-[#FAF9F4] shadow-2xl">
 
             <div className="p-6 sm:p-7">
 
@@ -941,7 +1138,7 @@ const Profile = () => {
 
                 <div>
 
-                  <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#C96B45] mb-2">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#C96B45]">
                     Remove listing
                   </p>
 
@@ -953,18 +1150,21 @@ const Profile = () => {
 
                 <button
                   type="button"
-                  onClick={() => setDeleteId(null)}
+                  onClick={() =>
+                    setDeleteId(null)
+                  }
                   disabled={deleting}
                   className="
-                    w-9
-                    h-9
                     flex
+                    h-9
+                    w-9
                     items-center
                     justify-center
                     text-[#747872]
-                    hover:bg-[#E9EFE7]
-                    hover:text-[#173F2B]
                     transition
+                    hover:bg-white
+                    hover:text-[#173F2B]
+                    disabled:opacity-40
                   "
                 >
                   <X size={18} />
@@ -972,28 +1172,44 @@ const Profile = () => {
 
               </div>
 
-              <p className="text-sm text-[#747872] leading-6 mt-5">
-                This listing and its uploaded images will be permanently
-                removed. This action cannot be undone.
-              </p>
+              <div className="mt-5 flex items-start gap-3 border-l-2 border-[#C96B45] bg-[#FFF3EE] px-4 py-3">
 
-              <div className="flex gap-3 mt-7">
+                <AlertTriangle
+                  size={17}
+                  className="mt-0.5 shrink-0 text-[#A85B43]"
+                />
+
+                <p className="text-xs leading-5 text-[#747872]">
+                  This will permanently remove
+                  the room listing and its uploaded
+                  images. This action cannot be
+                  undone.
+                </p>
+
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
 
                 <button
                   type="button"
-                  onClick={() => setDeleteId(null)}
+                  onClick={() =>
+                    setDeleteId(null)
+                  }
                   disabled={deleting}
                   className="
                     flex-1
-                    h-11
                     border
                     border-[#C9C9C0]
                     bg-white
+                    px-4
+                    py-3
                     text-sm
                     font-semibold
-                    text-[#26372C]
-                    hover:border-[#173F2B]
+                    text-[#747872]
                     transition
+                    hover:border-[#173F2B]
+                    hover:text-[#173F2B]
+                    disabled:opacity-50
                   "
                 >
                   Cancel
@@ -1001,21 +1217,29 @@ const Profile = () => {
 
                 <button
                   type="button"
-                  onClick={() => handleDelete(deleteId)}
+                  onClick={() =>
+                    handleDelete(
+                      deleteId
+                    )
+                  }
                   disabled={deleting}
                   className="
                     flex-1
-                    h-11
                     bg-[#173F2B]
-                    text-white
+                    px-4
+                    py-3
                     text-sm
                     font-semibold
-                    hover:bg-[#C04F2C]
-                    disabled:opacity-50
+                    text-white
                     transition
+                    hover:bg-[#C04F2C]
+                    disabled:cursor-wait
+                    disabled:opacity-50
                   "
                 >
-                  {deleting ? "Deleting..." : "Delete listing"}
+                  {deleting
+                    ? "Deleting..."
+                    : "Delete listing"}
                 </button>
 
               </div>
@@ -1025,11 +1249,31 @@ const Profile = () => {
           </div>
 
         </div>
-
       )}
 
     </main>
   );
+};
+
+/* =========================================================
+   DATE FORMATTER
+========================================================= */
+
+const formatDate = (date) => {
+  try {
+    return new Date(
+      date
+    ).toLocaleDateString(
+      "en-IN",
+      {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  } catch {
+    return "";
+  }
 };
 
 export default Profile;

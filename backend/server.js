@@ -7,6 +7,7 @@ import roomRoutes from "./routes/roomRoutes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import reportRoutes from "./routes/reportRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 dotenv.config();
 
@@ -31,6 +32,11 @@ app.get("/", (req, res) => {
     message: "Welcome to Pluto API 🚀",
   });
 });
+
+app.use(
+  "/api/notifications",
+  notificationRoutes
+);
 
 const PORT = process.env.PORT || 5000;
 

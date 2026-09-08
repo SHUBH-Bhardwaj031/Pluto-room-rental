@@ -2,13 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
+  ArrowUpRight,
+  CheckCircle2,
   Edit3,
-  Trash2,
-  MapPin,
-  IndianRupee,
-  Plus,
   Eye,
   Home,
+  IndianRupee,
+  MapPin,
+  Plus,
+  RefreshCw,
+  ToggleLeft,
+  ToggleRight,
+  Trash2,
+  X,
   AlertTriangle,
 } from "lucide-react";
 
@@ -17,20 +23,37 @@ const MyPosts = () => {
 
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [deleteId, setDeleteId] = useState(null);
-  const [message, setMessage] = useState("");
 
-  // ================= FETCH MY ROOMS =================
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const [updatingStatusId, setUpdatingStatusId] =
+    useState(null);
+
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] =
+    useState("error");
+
+  /* =====================================================
+     FETCH MY ROOMS
+  ===================================================== */
 
   const fetchMyRooms = async () => {
     try {
       setLoading(true);
+      setMessage("");
 
-      const token = localStorage.getItem("plutoToken");
+      const token =
+        localStorage.getItem("plutoToken");
 
       if (!token) {
-        setMessage("Please login first");
-        setLoading(false);
+        navigate("/login", {
+          replace: true,
+          state: {
+            from: "/my-posts",
+          },
+        });
+
         return;
       }
 
@@ -43,14 +66,44 @@ const MyPosts = () => {
         }
       );
 
-      setRooms(response.data.rooms || []);
+      setRooms(
+        Array.isArray(response.data?.rooms)
+          ? response.data.rooms
+          : []
+      );
     } catch (error) {
-      console.error("Fetch my posts error:", error);
+      console.error(
+        "Fetch my posts error:",
+        error
+      );
+
+      if (
+        error.response?.status === 401
+      ) {
+        localStorage.removeItem(
+          "plutoToken"
+        );
+
+        localStorage.removeItem(
+          "plutoUser"
+        );
+
+        navigate("/login", {
+          replace: true,
+          state: {
+            from: "/my-posts",
+          },
+        });
+
+        return;
+      }
 
       setMessage(
         error.response?.data?.message ||
-          "Unable to load your posts"
+          "Unable to load your listings."
       );
+
+      setMessageType("error");
     } finally {
       setLoading(false);
     }
@@ -60,11 +113,142 @@ const MyPosts = () => {
     fetchMyRooms();
   }, []);
 
-  // ================= DELETE =================
+  /* =====================================================
+     UPDATE STATUS
+  ===================================================== */
+
+  const handleStatusToggle = async (room) => {
+    if (updatingStatusId) return;
+
+    const token =
+      localStorage.getItem("plutoToken");
+
+    if (!token) {
+      navigate("/login", {
+        replace: true,
+        state: {
+          from: "/my-posts",
+        },
+      });
+
+      return;
+    }
+
+    const newStatus =
+      room.status === "available"
+        ? "unavailable"
+        : "available";
+
+    try {
+      setUpdatingStatusId(room._id);
+      setMessage("");
+
+      const roomData = new FormData();
+
+      roomData.append(
+        "status",
+        newStatus
+      );
+
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/rooms/${room._id}`,
+        roomData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const updatedRoom =
+        response.data?.room;
+
+      setRooms((prevRooms) =>
+        prevRooms.map((item) =>
+          item._id === room._id
+            ? {
+                ...item,
+                status:
+                  updatedRoom?.status ||
+                  newStatus,
+              }
+            : item
+        )
+      );
+
+      setMessage(
+        newStatus === "available"
+          ? "Listing is now available."
+          : "Listing marked as unavailable."
+      );
+
+      setMessageType("success");
+
+      setTimeout(() => {
+        setMessage("");
+      }, 2500);
+    } catch (error) {
+      console.error(
+        "Update room status error:",
+        error
+      );
+
+      if (
+        error.response?.status === 401
+      ) {
+        localStorage.removeItem(
+          "plutoToken"
+        );
+
+        localStorage.removeItem(
+          "plutoUser"
+        );
+
+        navigate("/login", {
+          replace: true,
+          state: {
+            from: "/my-posts",
+          },
+        });
+
+        return;
+      }
+
+      setMessage(
+        error.response?.data?.message ||
+          "Unable to update listing status."
+      );
+
+      setMessageType("error");
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
+  /* =====================================================
+     DELETE
+  ===================================================== */
 
   const handleDelete = async (roomId) => {
+    if (deleting) return;
+
     try {
-      const token = localStorage.getItem("plutoToken");
+      setDeleting(true);
+      setMessage("");
+
+      const token =
+        localStorage.getItem("plutoToken");
+
+      if (!token) {
+        navigate("/login", {
+          replace: true,
+          state: {
+            from: "/my-posts",
+          },
+        });
+
+        return;
+      }
 
       await axios.delete(
         `${import.meta.env.VITE_API_URL}/api/rooms/${roomId}`,
@@ -82,742 +266,434 @@ const MyPosts = () => {
       );
 
       setDeleteId(null);
+
+      setMessage(
+        "Listing deleted successfully."
+      );
+
+      setMessageType("success");
+
+      setTimeout(() => {
+        setMessage("");
+      }, 2500);
     } catch (error) {
-      console.error("Delete room error:", error);
+      console.error(
+        "Delete room error:",
+        error
+      );
+
+      if (
+        error.response?.status === 401
+      ) {
+        localStorage.removeItem(
+          "plutoToken"
+        );
+
+        localStorage.removeItem(
+          "plutoUser"
+        );
+
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
 
       setMessage(
         error.response?.data?.message ||
-          "Unable to delete room"
+          "Unable to delete this listing."
       );
 
-      setDeleteId(null);
+      setMessageType("error");
+    } finally {
+      setDeleting(false);
     }
   };
 
-  // ================= LOADING =================
+  /* =====================================================
+     STATS
+  ===================================================== */
+
+  const availableRooms = rooms.filter(
+    (room) =>
+      room.status === "available"
+  ).length;
+
+  const unavailableRooms =
+    rooms.length - availableRooms;
+
+  const totalViews = rooms.reduce(
+    (total, room) =>
+      total +
+      (Number(room.views) || 0),
+    0
+  );
+
+  /* =====================================================
+     LOADING
+  ===================================================== */
 
   if (loading) {
     return (
-      <section className="relative min-h-screen overflow-hidden bg-[#050505] text-white flex items-center justify-center">
+      <main className="min-h-screen bg-[#F5F3EA] text-[#171A18]">
 
-        {/* BACKGROUND */}
+        <section className="border-b border-[#DDDCD3] bg-white">
+          <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 lg:px-10">
 
-        <div className="absolute inset-0 pointer-events-none">
+            <div className="animate-pulse">
 
-          {/* Grid */}
-          <div
-            className="
-              absolute inset-0
-              opacity-[0.10]
-              bg-[linear-gradient(rgba(139,92,246,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.5)_1px,transparent_1px)]
-              bg-[size:55px_55px]
-            "
-          />
+              <div className="h-3 w-28 bg-[#E2E1D8]" />
 
-          {/* Glow */}
-          <div
-            className="
-              absolute
-              -top-40
-              -left-40
-              w-[500px]
-              h-[500px]
-              rounded-full
-              bg-indigo-600/10
-              blur-[140px]
-            "
-          />
+              <div className="mt-5 h-10 w-52 bg-[#E2E1D8]" />
 
-          <div
-            className="
-              absolute
-              top-[30%]
-              -right-40
-              w-[500px]
-              h-[500px]
-              rounded-full
-              bg-purple-600/[0.07]
-              blur-[150px]
-            "
-          />
+              <div className="mt-3 h-4 w-80 max-w-full bg-[#E8E7DF]" />
 
-        </div>
+            </div>
 
-        {/* LOADING */}
+          </div>
+        </section>
 
-        <div className="relative z-10 flex flex-col items-center gap-4">
+        <section className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-10">
 
-          <div
-            className="
-              w-10
-              h-10
-              border-2
-              border-zinc-800
-              border-t-indigo-500
-              rounded-full
-              animate-spin
-            "
-          />
+          <div className="grid gap-4 sm:grid-cols-3">
 
-          <p className="text-sm text-zinc-500">
-            Loading your posts...
-          </p>
+            {[1, 2, 3].map(
+              (item) => (
+                <div
+                  key={item}
+                  className="h-28 animate-pulse border border-[#DDDCD3] bg-white"
+                />
+              )
+            )}
+
+          </div>
+
+          <div className="mt-8 space-y-4">
+
+            {[1, 2, 3].map(
+              (item) => (
+                <div
+                  key={item}
+                  className="h-40 animate-pulse border border-[#DDDCD3] bg-white"
+                />
+              )
+            )}
+
+          </div>
+
+        </section>
+
+      </main>
+    );
+  }
+
+  /* =====================================================
+     RENDER
+  ===================================================== */
+
+  return (
+    <main className="min-h-screen bg-[#F5F3EA] text-[#171A18]">
+
+      {/* =================================================
+          HEADER
+      ================================================= */}
+
+      <section className="border-b border-[#DDDCD3] bg-white">
+
+        <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-10 lg:py-14">
+
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+
+            <div>
+
+              <div className="mb-4 flex items-center gap-3">
+
+                <span className="flex h-9 w-9 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
+                  <Home size={17} />
+                </span>
+
+                <div>
+
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#55745F]">
+                    Your space
+                  </p>
+
+                  <p className="mt-0.5 text-xs font-medium text-[#858982]">
+                    Manage your listings
+                  </p>
+
+                </div>
+
+              </div>
+
+              <h1 className="text-4xl font-bold tracking-[-0.045em] text-[#171A18] sm:text-5xl">
+                My Posts.
+              </h1>
+
+              <p className="mt-3 max-w-xl text-sm leading-6 text-[#747872] sm:text-base">
+                Manage, update and control the rooms
+                you've listed on Pluto.
+              </p>
+
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/add-room")
+              }
+              className="flex w-fit items-center gap-2 bg-[#173F2B] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#102F20]"
+            >
+              <Plus size={16} />
+              Add Room
+            </button>
+
+          </div>
 
         </div>
 
       </section>
-    );
-  }
 
-  return (
-    <section className="relative min-h-screen overflow-hidden bg-[#050505] text-white py-10 sm:py-14">
+      {/* =================================================
+          CONTENT
+      ================================================= */}
 
-      {/* ================================================= */}
-      {/* BACKGROUND */}
-      {/* ================================================= */}
+      <section className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
 
-      <div className="absolute inset-0 z-0 pointer-events-none">
-
-        {/* GRID */}
-
-        <div
-          className="
-            absolute inset-0
-            opacity-[0.10]
-            bg-[linear-gradient(rgba(139,92,246,0.5)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.5)_1px,transparent_1px)]
-            bg-[size:55px_55px]
-          "
-        />
-
-        {/* TOP LEFT GLOW */}
-
-        <div
-          className="
-            absolute
-            -top-48
-            -left-40
-            w-[550px]
-            h-[550px]
-            rounded-full
-            bg-indigo-600/[0.08]
-            blur-[150px]
-          "
-        />
-
-        {/* RIGHT GLOW */}
-
-        <div
-          className="
-            absolute
-            top-[25%]
-            -right-48
-            w-[550px]
-            h-[550px]
-            rounded-full
-            bg-purple-600/[0.06]
-            blur-[160px]
-          "
-        />
-
-        {/* BOTTOM GLOW */}
-
-        <div
-          className="
-            absolute
-            -bottom-48
-            left-[30%]
-            w-[500px]
-            h-[500px]
-            rounded-full
-            bg-fuchsia-600/[0.035]
-            blur-[150px]
-          "
-        />
-
-      </div>
-
-      {/* ================================================= */}
-      {/* CONTENT */}
-      {/* ================================================= */}
-
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-        {/* ================= HEADER ================= */}
-
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10">
-
-          <div>
-
-            <div className="flex items-center gap-3 mb-3">
-
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                <Home
-                  size={19}
-                  className="text-indigo-400"
-                />
-              </div>
-
-              <span className="text-xs uppercase tracking-[0.2em] text-zinc-500 font-medium">
-                Your Space
-              </span>
-
-            </div>
-
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-              My Posts
-            </h1>
-
-            <p className="text-zinc-500 mt-2 max-w-xl">
-              Manage the rooms you have posted on Pluto.
-            </p>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={() => navigate("/add-room")}
-            className="
-              inline-flex
-              items-center
-              justify-center
-              gap-2
-              bg-indigo-600
-              hover:bg-indigo-500
-              text-white
-              px-5
-              py-3
-              rounded-xl
-              font-semibold
-              text-sm
-              transition-all
-              shadow-lg
-              shadow-indigo-600/10
-            "
-          >
-            <Plus size={17} />
-            Add New Room
-          </button>
-
-        </div>
-
-        {/* ================= MESSAGE ================= */}
+        {/* =================================================
+            MESSAGE
+        ================================================= */}
 
         {message && (
-          <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-            {message}
-          </div>
-        )}
-
-        {/* ================================================= */}
-        {/* EMPTY STATE */}
-        {/* ================================================= */}
-
-        {rooms.length === 0 ? (
           <div
-            className="
-              min-h-[420px]
-              rounded-3xl
-              border
-              border-zinc-800
-              bg-zinc-950/90
-              backdrop-blur-xl
-              flex
-              flex-col
-              items-center
-              justify-center
-              text-center
-              px-6
-              shadow-2xl
-              shadow-black/30
-            "
+            className={`mb-7 flex items-center justify-between gap-4 border px-4 py-3 text-xs font-semibold ${
+              messageType === "success"
+                ? "border-[#C8D5C9] bg-[#E9EFE7] text-[#31543D]"
+                : "border-[#E2C7BC] bg-[#F8EDE8] text-[#9A5037]"
+            }`}
           >
 
-            <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-5">
-
-              <Home
-                size={27}
-                className="text-zinc-600"
-              />
-
-            </div>
-
-            <h2 className="text-xl font-semibold">
-              You haven't posted any rooms yet
-            </h2>
-
-            <p className="text-zinc-500 text-sm mt-2 max-w-md">
-              Share a room with the Pluto community and
-              help someone find their next space.
-            </p>
+            <span>{message}</span>
 
             <button
               type="button"
-              onClick={() => navigate("/add-room")}
-              className="
-                mt-6
-                inline-flex
-                items-center
-                gap-2
-                bg-indigo-600
-                hover:bg-indigo-500
-                text-white
-                px-5
-                py-3
-                rounded-xl
-                font-semibold
-                text-sm
-                transition-all
-              "
+              onClick={() =>
+                setMessage("")
+              }
+              className="shrink-0 opacity-60 transition hover:opacity-100"
+              aria-label="Close message"
             >
-              <Plus size={17} />
-              Post a Room
+              <X size={15} />
             </button>
 
           </div>
-        ) : (
-          <>
-
-            {/* ================================================= */}
-            {/* STATS */}
-            {/* ================================================= */}
-
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-
-              <div
-                className="
-                  px-4
-                  py-2
-                  rounded-xl
-                  bg-zinc-950/90
-                  border
-                  border-zinc-800
-                  backdrop-blur-xl
-                "
-              >
-
-                <span className="text-zinc-500 text-sm">
-                  Total Posts
-                </span>
-
-                <span className="text-white font-semibold ml-2">
-                  {rooms.length}
-                </span>
-
-              </div>
-
-              <div
-                className="
-                  px-4
-                  py-2
-                  rounded-xl
-                  bg-zinc-950/90
-                  border
-                  border-zinc-800
-                  backdrop-blur-xl
-                "
-              >
-
-                <span className="text-zinc-500 text-sm">
-                  Available
-                </span>
-
-                <span className="text-emerald-400 font-semibold ml-2">
-                  {
-                    rooms.filter(
-                      (room) =>
-                        room.status === "available"
-                    ).length
-                  }
-                </span>
-
-              </div>
-
-            </div>
-
-            {/* ================================================= */}
-            {/* ROOM GRID */}
-            {/* ================================================= */}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-              {rooms.map((room) => (
-                <div
-                  key={room._id}
-                  className="
-                    group
-                    bg-zinc-950/95
-                    backdrop-blur-xl
-                    border
-                    border-zinc-800
-                    rounded-2xl
-                    overflow-hidden
-                    hover:border-zinc-700
-                    hover:-translate-y-1
-                    transition-all
-                    duration-300
-                    shadow-xl
-                    shadow-black/20
-                  "
-                >
-
-                  {/* ================= IMAGE ================= */}
-
-                  <div className="relative h-56 bg-zinc-900 overflow-hidden">
-
-                    {room.images?.length > 0 ? (
-                      <img
-                        src={room.images[0]}
-                        alt={room.title}
-                        className="
-                          w-full
-                          h-full
-                          object-cover
-                          group-hover:scale-105
-                          transition-transform
-                          duration-500
-                        "
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-
-                        <Home
-                          size={30}
-                          className="text-zinc-700"
-                        />
-
-                      </div>
-                    )}
-
-                    {/* IMAGE OVERLAY */}
-
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-
-                    {/* STATUS */}
-
-                    <span
-                      className={`
-                        absolute
-                        top-3
-                        right-3
-                        px-3
-                        py-1.5
-                        rounded-full
-                        text-xs
-                        font-medium
-                        backdrop-blur-md
-                        border
-                        ${
-                          room.status === "available"
-                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
-                            : "bg-red-500/15 text-red-400 border-red-500/20"
-                        }
-                      `}
-                    >
-                      {room.status === "available"
-                        ? "Available"
-                        : "Unavailable"}
-                    </span>
-
-                    {/* ROOM TYPE */}
-
-                    <span
-                      className="
-                        absolute
-                        bottom-3
-                        left-3
-                        bg-black/75
-                        backdrop-blur-md
-                        text-white
-                        text-xs
-                        font-medium
-                        px-3
-                        py-1.5
-                        rounded-full
-                        border
-                        border-white/10
-                      "
-                    >
-                      {room.roomType}
-                    </span>
-
-                  </div>
-
-                  {/* ================= CONTENT ================= */}
-
-                  <div className="p-5">
-
-                    {/* TITLE + RENT */}
-
-                    <div className="flex items-start justify-between gap-4">
-
-                      <h3 className="text-lg font-semibold text-white truncate">
-                        {room.title}
-                      </h3>
-
-                      <div className="flex items-center text-white font-bold whitespace-nowrap">
-
-                        <IndianRupee size={14} />
-
-                        <span>
-                          {room.rent}
-                        </span>
-
-                      </div>
-
-                    </div>
-
-                    {/* LOCATION */}
-
-                    <div className="flex items-center gap-2 mt-3 min-w-0">
-
-                      <MapPin
-                        size={15}
-                        className="text-zinc-600 shrink-0"
-                      />
-
-                      <span className="text-sm text-zinc-500 truncate">
-                        {room.location?.locality},{" "}
-                        {room.location?.city}
-                      </span>
-
-                    </div>
-
-                    {/* AMENITIES */}
-
-                    {room.amenities?.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-4">
-
-                        {room.amenities
-                          .slice(0, 3)
-                          .map((amenity, index) => (
-                            <span
-                              key={index}
-                              className="
-                                text-xs
-                                text-zinc-400
-                                bg-zinc-900
-                                border
-                                border-zinc-800
-                                px-2.5
-                                py-1
-                                rounded-md
-                              "
-                            >
-                              {amenity}
-                            </span>
-                          ))}
-
-                      </div>
-                    )}
-
-                    {/* ACTIONS */}
-
-                    <div className="mt-5 pt-4 border-t border-zinc-800 grid grid-cols-3 gap-2">
-
-                      {/* VIEW */}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navigate(
-                            `/rooms/${room._id}`
-                          )
-                        }
-                        className="
-                          flex
-                          items-center
-                          justify-center
-                          gap-1.5
-                          py-2.5
-                          rounded-xl
-                          bg-zinc-900
-                          border
-                          border-zinc-800
-                          text-zinc-400
-                          hover:text-white
-                          hover:border-zinc-700
-                          transition-all
-                          text-sm
-                          font-medium
-                        "
-                      >
-                        <Eye size={15} />
-                        View
-                      </button>
-
-                      {/* EDIT */}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navigate(
-                            `/edit-room/${room._id}`
-                          )
-                        }
-                        className="
-                          flex
-                          items-center
-                          justify-center
-                          gap-1.5
-                          py-2.5
-                          rounded-xl
-                          bg-indigo-500/10
-                          border
-                          border-indigo-500/20
-                          text-indigo-400
-                          hover:bg-indigo-500/15
-                          hover:border-indigo-500/30
-                          transition-all
-                          text-sm
-                          font-medium
-                        "
-                      >
-                        <Edit3 size={15} />
-                        Edit
-                      </button>
-
-                      {/* DELETE */}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setDeleteId(room._id)
-                        }
-                        className="
-                          flex
-                          items-center
-                          justify-center
-                          gap-1.5
-                          py-2.5
-                          rounded-xl
-                          bg-red-500/10
-                          border
-                          border-red-500/20
-                          text-red-400
-                          hover:bg-red-500/15
-                          hover:border-red-500/30
-                          transition-all
-                          text-sm
-                          font-medium
-                        "
-                      >
-                        <Trash2 size={15} />
-                        Delete
-                      </button>
-
-                    </div>
-
-                  </div>
-
-                </div>
-              ))}
-
-            </div>
-
-          </>
         )}
 
-      </div>
+        {/* =================================================
+            STATS
+        ================================================= */}
 
-      {/* ================================================= */}
-      {/* DELETE MODAL */}
-      {/* ================================================= */}
+        <div className="grid gap-4 sm:grid-cols-3">
+
+          <StatCard
+            label="Total listings"
+            value={rooms.length}
+            description="All rooms you've posted"
+          />
+
+          <StatCard
+            label="Available"
+            value={availableRooms}
+            description="Currently visible to seekers"
+            accent="green"
+          />
+
+          <StatCard
+            label="Total views"
+            value={totalViews}
+            description={`${unavailableRooms} unavailable listing${
+              unavailableRooms === 1
+                ? ""
+                : "s"
+            }`}
+          />
+
+        </div>
+
+        {/* =================================================
+            SECTION HEADER
+        ================================================= */}
+
+        <div className="mt-10 flex flex-col gap-3 border-b border-[#D8D7CE] pb-5 sm:flex-row sm:items-end sm:justify-between">
+
+          <div>
+
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#55745F]">
+              Your listings
+            </p>
+
+            <h2 className="mt-1 text-2xl font-bold tracking-[-0.025em] text-[#171A18]">
+              Manage rooms
+            </h2>
+
+          </div>
+
+          <span className="text-xs font-semibold text-[#858982]">
+            {rooms.length} listing
+            {rooms.length === 1
+              ? ""
+              : "s"}
+          </span>
+
+        </div>
+
+        {/* =================================================
+            EMPTY STATE
+        ================================================= */}
+
+        {rooms.length === 0 ? (
+          <EmptyState
+            onAdd={() =>
+              navigate("/add-room")
+            }
+          />
+        ) : (
+          <div className="divide-y divide-[#DDDCD3] border-b border-[#DDDCD3]">
+
+            {rooms.map((room) => (
+              <RoomRow
+                key={room._id}
+                room={room}
+                updatingStatus={
+                  updatingStatusId ===
+                  room._id
+                }
+                onView={() =>
+                  navigate(
+                    `/rooms/view-details/${room._id}`
+                  )
+                }
+                onEdit={() =>
+                  navigate(
+                    `/edit-room/${room._id}`
+                  )
+                }
+                onDelete={() =>
+                  setDeleteId(room._id)
+                }
+                onToggleStatus={() =>
+                  handleStatusToggle(room)
+                }
+              />
+            ))}
+
+          </div>
+        )}
+
+      </section>
+
+      {/* =================================================
+          DELETE MODAL
+      ================================================= */}
 
       {deleteId && (
         <div
-          className="
-            fixed
-            inset-0
-            z-50
-            flex
-            items-center
-            justify-center
-            px-4
-            bg-black/75
-            backdrop-blur-sm
-          "
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#171A18]/50 px-5 backdrop-blur-sm"
+          onMouseDown={(e) => {
+            if (
+              e.target === e.currentTarget &&
+              !deleting
+            ) {
+              setDeleteId(null);
+            }
+          }}
         >
 
-          <div
-            className="
-              w-full
-              max-w-md
-              bg-zinc-950
-              border
-              border-zinc-800
-              rounded-2xl
-              p-6
-              shadow-2xl
-            "
-          >
+          <div className="w-full max-w-md border border-[#D8D7CE] bg-white shadow-[0_25px_70px_rgba(23,26,24,0.18)]">
 
-            {/* ICON */}
+            <div className="flex items-start justify-between border-b border-[#E2E1D9] px-6 py-5">
 
-            <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-5">
+              <div className="flex items-center gap-3">
 
-              <AlertTriangle
-                size={22}
-                className="text-red-400"
-              />
+                <span className="flex h-10 w-10 items-center justify-center bg-[#F8EDE8] text-[#B44E32]">
+                  <AlertTriangle
+                    size={19}
+                  />
+                </span>
+
+                <div>
+
+                  <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#A36A58]">
+                    Permanent action
+                  </p>
+
+                  <h3 className="mt-1 text-lg font-bold text-[#171A18]">
+                    Delete listing?
+                  </h3>
+
+                </div>
+
+              </div>
+
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() =>
+                  setDeleteId(null)
+                }
+                className="text-[#858982] transition hover:text-[#171A18] disabled:opacity-40"
+              >
+                <X size={18} />
+              </button>
 
             </div>
 
-            {/* TITLE */}
+            <div className="px-6 py-5">
 
-            <h2 className="text-xl font-semibold text-white">
-              Delete this room?
-            </h2>
+              <p className="text-sm leading-6 text-[#747872]">
+                This will permanently remove the
+                room listing and its uploaded images.
+                This action cannot be undone.
+              </p>
 
-            <p className="text-sm text-zinc-500 mt-2 leading-relaxed">
-              This will permanently remove the room
-              listing and its uploaded images. This action
-              cannot be undone.
-            </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
 
-            {/* BUTTONS */}
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() =>
+                    setDeleteId(null)
+                  }
+                  className="flex-1 border border-[#D0CFC6] bg-white px-5 py-3 text-sm font-bold text-[#747872] transition hover:border-[#A9AAA2] hover:text-[#34483A] disabled:opacity-50"
+                >
+                  Cancel
+                </button>
 
-            <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() =>
+                    handleDelete(deleteId)
+                  }
+                  className="flex flex-1 items-center justify-center gap-2 bg-[#A84D35] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#8F402B] disabled:cursor-wait disabled:opacity-60"
+                >
 
-              <button
-                type="button"
-                onClick={() => setDeleteId(null)}
-                className="
-                  flex-1
-                  py-3
-                  rounded-xl
-                  bg-zinc-900
-                  border
-                  border-zinc-800
-                  text-zinc-300
-                  hover:text-white
-                  hover:border-zinc-700
-                  font-medium
-                  text-sm
-                  transition-all
-                "
-              >
-                Cancel
-              </button>
+                  {deleting ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={15} />
+                      Delete Room
+                    </>
+                  )}
 
-              <button
-                type="button"
-                onClick={() =>
-                  handleDelete(deleteId)
-                }
-                className="
-                  flex-1
-                  py-3
-                  rounded-xl
-                  bg-red-600
-                  hover:bg-red-500
-                  text-white
-                  font-semibold
-                  text-sm
-                  transition-all
-                "
-              >
-                Delete Room
-              </button>
+                </button>
+
+              </div>
 
             </div>
 
@@ -826,8 +702,390 @@ const MyPosts = () => {
         </div>
       )}
 
-    </section>
+    </main>
   );
+};
+
+/* =========================================================
+   STAT CARD
+========================================================= */
+
+const StatCard = ({
+  label,
+  value,
+  description,
+  accent,
+}) => {
+  return (
+    <div className="border border-[#D8D7CE] bg-white p-5">
+
+      <div className="flex items-start justify-between gap-4">
+
+        <div>
+
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#858982]">
+            {label}
+          </p>
+
+          <p
+            className={`mt-3 text-3xl font-bold tracking-[-0.04em] ${
+              accent === "green"
+                ? "text-[#173F2B]"
+                : "text-[#171A18]"
+            }`}
+          >
+            {value}
+          </p>
+
+        </div>
+
+        {accent === "green" && (
+          <span className="flex h-8 w-8 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
+            <CheckCircle2
+              size={16}
+            />
+          </span>
+        )}
+
+      </div>
+
+      <p className="mt-2 text-[11px] text-[#969992]">
+        {description}
+      </p>
+
+    </div>
+  );
+};
+
+/* =========================================================
+   ROOM ROW
+========================================================= */
+
+const RoomRow = ({
+  room,
+  updatingStatus,
+  onView,
+  onEdit,
+  onDelete,
+  onToggleStatus,
+}) => {
+  const isAvailable =
+    room.status === "available";
+
+  return (
+    <article className="group grid gap-5 py-6 md:grid-cols-[190px_1fr_auto] md:items-center md:gap-7">
+
+      {/* =================================================
+          IMAGE
+      ================================================= */}
+
+      <button
+        type="button"
+        onClick={onView}
+        className="relative h-48 w-full overflow-hidden bg-[#E9E8E0] text-left md:h-32"
+      >
+
+        {room.images?.length > 0 ? (
+          <img
+            src={room.images[0]}
+            alt={room.title}
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+
+            <div className="text-center">
+
+              <div className="mx-auto flex h-12 w-12 items-center justify-center bg-white text-[#55745F]">
+                <Home size={22} />
+              </div>
+
+              <p className="mt-2 text-[10px] font-semibold text-[#858982]">
+                No image
+              </p>
+
+            </div>
+
+          </div>
+        )}
+
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+
+        <span
+          className={`absolute bottom-3 left-3 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[0.1em] ${
+            isAvailable
+              ? "bg-[#E6B84A] text-[#173F2B]"
+              : "bg-[#333934] text-white"
+          }`}
+        >
+          {isAvailable
+            ? "Available"
+            : "Unavailable"}
+        </span>
+
+      </button>
+
+      {/* =================================================
+          DETAILS
+      ================================================= */}
+
+      <div className="min-w-0">
+
+        <div className="flex items-start justify-between gap-4">
+
+          <div className="min-w-0">
+
+            <button
+              type="button"
+              onClick={onView}
+              className="max-w-full text-left"
+            >
+              <h3 className="truncate text-lg font-bold tracking-[-0.015em] text-[#171A18] transition hover:text-[#173F2B]">
+                {room.title}
+              </h3>
+            </button>
+
+            <div className="mt-2 flex items-center gap-2 text-[#747872]">
+
+              <MapPin
+                size={14}
+                className="shrink-0 text-[#55745F]"
+              />
+
+              <span className="truncate text-xs font-medium">
+                {room.location?.locality ||
+                  "Location"}
+
+                {room.location?.city
+                  ? `, ${room.location.city}`
+                  : ""}
+              </span>
+
+            </div>
+
+          </div>
+
+          <div className="shrink-0 text-right">
+
+            <div className="flex items-center justify-end text-[#173F2B]">
+
+              <IndianRupee
+                size={14}
+                strokeWidth={2.5}
+              />
+
+              <span className="text-lg font-bold">
+                {Number(
+                  room.rent || 0
+                ).toLocaleString(
+                  "en-IN"
+                )}
+              </span>
+
+            </div>
+
+            <p className="mt-0.5 text-[9px] uppercase tracking-[0.1em] text-[#969992]">
+              / month
+            </p>
+
+          </div>
+
+        </div>
+
+        {/* AMENITIES */}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+
+          <span className="border border-[#D8D7CE] bg-[#FAF9F4] px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[0.08em] text-[#55745F]">
+            {room.roomType}
+          </span>
+
+          {room.amenities
+            ?.slice(0, 3)
+            .map(
+              (amenity, index) => (
+                <span
+                  key={`${amenity}-${index}`}
+                  className="border border-[#E2E1D9] bg-white px-2.5 py-1.5 text-[9px] font-medium text-[#858982]"
+                >
+                  {amenity}
+                </span>
+              )
+            )}
+
+        </div>
+
+        {/* META */}
+
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] text-[#969992]">
+
+          <span>
+            {Number(
+              room.views || 0
+            ).toLocaleString(
+              "en-IN"
+            )}{" "}
+            views
+          </span>
+
+          {room.createdAt && (
+            <span>
+              Posted{" "}
+              {formatDate(
+                room.createdAt
+              )}
+            </span>
+          )}
+
+        </div>
+
+      </div>
+
+      {/* =================================================
+          ACTIONS
+      ================================================= */}
+
+      <div className="flex flex-col gap-2 border-t border-[#E2E1D9] pt-4 md:w-[175px] md:border-t-0 md:pt-0">
+
+        {/* STATUS */}
+
+        <button
+          type="button"
+          disabled={updatingStatus}
+          onClick={onToggleStatus}
+          className={`flex w-full items-center justify-center gap-2 border px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.08em] transition disabled:cursor-wait disabled:opacity-60 ${
+            isAvailable
+              ? "border-[#C8D5C9] bg-[#E9EFE7] text-[#31543D] hover:border-[#9EB3A2]"
+              : "border-[#D8D7CE] bg-white text-[#747872] hover:border-[#B7B8B0]"
+          }`}
+        >
+
+          {updatingStatus ? (
+            <>
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-current/20 border-t-current" />
+              Updating...
+            </>
+          ) : (
+            <>
+              {isAvailable ? (
+                <ToggleRight
+                  size={17}
+                />
+              ) : (
+                <ToggleLeft
+                  size={17}
+                />
+              )}
+
+              {isAvailable
+                ? "Mark unavailable"
+                : "Make available"}
+            </>
+          )}
+
+        </button>
+
+        {/* VIEW / EDIT */}
+
+        <div className="grid grid-cols-2 gap-2">
+
+          <button
+            type="button"
+            onClick={onView}
+            className="flex items-center justify-center gap-1.5 border border-[#D8D7CE] bg-white px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.07em] text-[#747872] transition hover:border-[#AEB0A8] hover:text-[#173F2B]"
+          >
+            <Eye size={14} />
+            View
+          </button>
+
+          <button
+            type="button"
+            onClick={onEdit}
+            className="flex items-center justify-center gap-1.5 border border-[#D8D7CE] bg-white px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.07em] text-[#747872] transition hover:border-[#AEB0A8] hover:text-[#173F2B]"
+          >
+            <Edit3 size={14} />
+            Edit
+          </button>
+
+        </div>
+
+        {/* DELETE */}
+
+        <button
+          type="button"
+          onClick={onDelete}
+          className="flex w-full items-center justify-center gap-1.5 border border-[#E2C7BC] bg-[#FFF9F6] px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.07em] text-[#A85B43] transition hover:border-[#CDA18F] hover:bg-[#F8EDE8]"
+        >
+          <Trash2 size={14} />
+          Delete listing
+        </button>
+
+      </div>
+
+    </article>
+  );
+};
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+const EmptyState = ({
+  onAdd,
+}) => {
+  return (
+    <div className="border-b border-[#D8D7CE] py-16 text-center sm:py-20">
+
+      <div className="mx-auto flex h-16 w-16 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
+        <Home size={27} />
+      </div>
+
+      <p className="mt-5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#55745F]">
+        No listings yet
+      </p>
+
+      <h3 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-[#171A18]">
+        Your space is waiting.
+      </h3>
+
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#858982]">
+        Add your first room and let people looking
+        for a place discover it on Pluto.
+      </p>
+
+      <button
+        type="button"
+        onClick={onAdd}
+        className="mt-7 inline-flex items-center gap-2 bg-[#173F2B] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#102F20]"
+      >
+        <Plus size={16} />
+        List a Room
+        <ArrowUpRight size={15} />
+      </button>
+
+    </div>
+  );
+};
+
+/* =========================================================
+   DATE FORMATTER
+========================================================= */
+
+const formatDate = (date) => {
+  try {
+    return new Date(
+      date
+    ).toLocaleDateString(
+      "en-IN",
+      {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  } catch {
+    return "";
+  }
 };
 
 export default MyPosts;

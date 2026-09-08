@@ -1,5 +1,12 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  useNavigate,
+} from "react-router-dom";
+
 import {
   MapPin,
   IndianRupee,
@@ -7,11 +14,15 @@ import {
   ArrowUpRight,
   Navigation,
 } from "lucide-react";
+
 import axios from "axios";
 
 import googleMapsIcon from "../assets/google-maps-icon.png";
 
-const RoomCard = ({ room, onUnsave }) => {
+const RoomCard = ({
+  room,
+  onUnsave,
+}) => {
   const navigate = useNavigate();
 
   const [saved, setSaved] = useState(
@@ -23,6 +34,7 @@ const RoomCard = ({ room, onUnsave }) => {
   /*
    * Sync saved state if room data changes
    */
+
   useEffect(() => {
     setSaved(Boolean(room.isSaved));
   }, [room.isSaved]);
@@ -49,6 +61,7 @@ const RoomCard = ({ room, onUnsave }) => {
     /*
      * User must login to save a room
      */
+
     if (!token) {
       navigate("/login");
       return;
@@ -63,6 +76,7 @@ const RoomCard = ({ room, onUnsave }) => {
         /*
          * UNSAVE
          */
+
         await axios.delete(
           `${import.meta.env.VITE_API_URL}/api/rooms/${room._id}/save`,
           {
@@ -79,11 +93,13 @@ const RoomCard = ({ room, onUnsave }) => {
          * inside Saved Rooms, remove it
          * immediately from the parent list.
          */
+
         onUnsave?.(room._id);
       } else {
         /*
          * SAVE
          */
+
         await axios.post(
           `${import.meta.env.VITE_API_URL}/api/rooms/${room._id}/save`,
           {},
@@ -124,6 +140,7 @@ const RoomCard = ({ room, onUnsave }) => {
     /*
      * User must login to get directions
      */
+
     if (!token) {
       navigate("/login");
       return;
@@ -204,14 +221,16 @@ const RoomCard = ({ room, onUnsave }) => {
   ========================================================= */
 
   /*
-   * IMPORTANT
-   * Room ID is NOT added to the URL.
+   * Room ID is now part of the URL.
    *
-   * URL:
+   * OLD:
    * /rooms/view-details
    *
-   * Room ID:
-   * passed through React Router state
+   * NEW:
+   * /rooms/view-details/:id
+   *
+   * Example:
+   * /rooms/view-details/68xxxxxxxx
    */
 
   const openRoomDetails = () => {
@@ -221,16 +240,15 @@ const RoomCard = ({ room, onUnsave }) => {
     /*
      * User must login to view room details
      */
+
     if (!token) {
       navigate("/login");
       return;
     }
 
-    navigate("/rooms/view-details", {
-      state: {
-        roomId: room._id,
-      },
-    });
+    navigate(
+      `/rooms/view-details/${room._id}`
+    );
   };
 
   const handleCardClick = () => {
@@ -257,11 +275,13 @@ const RoomCard = ({ room, onUnsave }) => {
         hover:shadow-[0_18px_40px_rgba(23,63,43,0.11)]
       "
     >
+
       {/* =====================================================
           IMAGE
       ===================================================== */}
 
       <div className="relative aspect-[4/3] overflow-hidden bg-[#E9E8E0]">
+
         {room.images?.length > 0 ? (
           <img
             src={room.images[0]}
@@ -278,7 +298,9 @@ const RoomCard = ({ room, onUnsave }) => {
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-[#E9E8E0]">
+
             <div className="text-center">
+
               <div className="mx-auto flex h-12 w-12 items-center justify-center bg-white text-[#55745F]">
                 <MapPin size={23} />
               </div>
@@ -286,32 +308,44 @@ const RoomCard = ({ room, onUnsave }) => {
               <p className="mt-3 text-xs font-semibold text-[#7E827B]">
                 No image available
               </p>
+
             </div>
+
           </div>
         )}
 
         {/* Image shade */}
+
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/10" />
 
         {/* Room type */}
+
         <div className="absolute bottom-4 left-4">
+
           <span className="bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[#26372C] shadow-sm">
             {room.roomType}
           </span>
+
         </div>
 
         {/* Availability */}
+
         <div className="absolute right-4 bottom-4">
+
           {room.status === "available" ? (
             <span className="flex items-center gap-1.5 bg-[#E6B84A] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#173F2B] shadow-sm">
+
               <span className="h-1.5 w-1.5 rounded-full bg-[#173F2B]" />
+
               Available
+
             </span>
           ) : (
             <span className="bg-[#333934] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-white shadow-sm">
               Unavailable
             </span>
           )}
+
         </div>
 
         {/* =====================================================
@@ -360,6 +394,7 @@ const RoomCard = ({ room, onUnsave }) => {
             }
           `}
         >
+
           <Bookmark
             size={18}
             strokeWidth={2}
@@ -369,7 +404,9 @@ const RoomCard = ({ room, onUnsave }) => {
                 : "none"
             }
           />
+
         </button>
+
       </div>
 
       {/* =====================================================
@@ -377,15 +414,19 @@ const RoomCard = ({ room, onUnsave }) => {
       ===================================================== */}
 
       <div className="p-5">
+
         {/* Title + Arrow */}
 
         <div className="flex items-start justify-between gap-4">
+
           <div className="min-w-0 flex-1">
+
             <h3 className="truncate text-[17px] font-bold tracking-[-0.015em] text-[#171A18] transition-colors group-hover:text-[#173F2B]">
               {room.title}
             </h3>
 
             <div className="mt-2 flex min-w-0 items-center gap-1.5">
+
               <MapPin
                 size={14}
                 strokeWidth={2}
@@ -397,7 +438,9 @@ const RoomCard = ({ room, onUnsave }) => {
                   room.location?.city ||
                   "Location unavailable"}
               </span>
+
             </div>
+
           </div>
 
           <div
@@ -421,6 +464,7 @@ const RoomCard = ({ room, onUnsave }) => {
           >
             <ArrowUpRight size={17} />
           </div>
+
         </div>
 
         {/* Divider */}
@@ -430,12 +474,15 @@ const RoomCard = ({ room, onUnsave }) => {
         {/* Price + Directions */}
 
         <div className="flex items-end justify-between gap-4">
+
           <div>
+
             <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
               Monthly rent
             </p>
 
             <div className="flex items-center text-[#173F2B]">
+
               <IndianRupee
                 size={17}
                 strokeWidth={2.5}
@@ -446,7 +493,9 @@ const RoomCard = ({ room, onUnsave }) => {
                   room.rent || 0
                 ).toLocaleString("en-IN")}
               </span>
+
             </div>
+
           </div>
 
           {/* Directions */}
@@ -482,6 +531,7 @@ const RoomCard = ({ room, onUnsave }) => {
               disabled:opacity-30
             "
           >
+
             {hasCoordinates ? (
               <img
                 src={googleMapsIcon}
@@ -492,52 +542,69 @@ const RoomCard = ({ room, onUnsave }) => {
               <Navigation size={14} />
             )}
 
-            <span>Directions</span>
+            <span>
+              Directions
+            </span>
+
           </button>
+
         </div>
 
         {/* Amenities */}
 
         {room.amenities?.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-1.5">
+
             {room.amenities
               .slice(0, 4)
-              .map((amenity, index) => (
-                <span
-                  key={`${amenity}-${index}`}
-                  className="
-                    border
-                    border-[#E3E4DC]
-                    bg-[#F7F6F0]
-                    px-2.5
-                    py-1.5
-                    text-[10px]
-                    font-semibold
-                    text-[#657068]
-                  "
-                >
-                  {amenity}
-                </span>
-              ))}
+              .map(
+                (
+                  amenity,
+                  index
+                ) => (
+                  <span
+                    key={`${amenity}-${index}`}
+                    className="
+                      border
+                      border-[#E3E4DC]
+                      bg-[#F7F6F0]
+                      px-2.5
+                      py-1.5
+                      text-[10px]
+                      font-semibold
+                      text-[#657068]
+                    "
+                  >
+                    {amenity}
+                  </span>
+                )
+              )}
+
           </div>
         )}
 
         {/* Bottom line */}
 
         <div className="mt-5 flex items-center justify-between border-t border-[#ECEBE4] pt-4">
+
           <div className="flex items-center gap-2">
+
             <span className="h-1.5 w-1.5 rounded-full bg-[#C96B45]" />
 
             <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#989B94]">
               Pluto listing
             </span>
+
           </div>
 
           <span className="text-xs font-bold text-[#173F2B] transition-transform duration-200 group-hover:translate-x-0.5">
             View details →
           </span>
+
         </div>
+
       </div>
+
     </article>
   );
 };

@@ -4,7 +4,6 @@ import MapView from "../components/MapView";
 import axios from "axios";
 import {
   X,
-  ImagePlus,
   MapPin,
   Loader2,
   Home,
@@ -15,6 +14,24 @@ import {
 
 const DEFAULT_LATITUDE = 26.8467;
 const DEFAULT_LONGITUDE = 80.9462;
+
+const ALLOWED_ROOM_TYPES = [
+  "Single",
+  "Shared",
+  "1 BHK",
+  "2 BHK",
+  "PG",
+  "Other",
+];
+
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+];
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 const AddRoom = () => {
   const navigate = useNavigate();
@@ -35,12 +52,186 @@ const AddRoom = () => {
     whatsapp: "",
   });
 
+  const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState([]);
 
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationMessage, setLocationMessage] = useState("");
+
+  /* =========================================================
+     VALIDATION HELPERS
+  ========================================================= */
+
+  const validatePhone = (value) => {
+    const phone = value.replace(/\D/g, "");
+
+    if (!phone) return false;
+
+    if (phone.length === 10) {
+      return /^[6-9]\d{9}$/.test(phone);
+    }
+
+    if (phone.length === 12 && phone.startsWith("91")) {
+      return /^91[6-9]\d{9}$/.test(phone);
+    }
+
+    return false;
+  };
+
+  const validateCoordinates = (latitude, longitude) => {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    return (
+      Number.isFinite(lat) &&
+      Number.isFinite(lng) &&
+      lat >= -90 &&
+      lat <= 90 &&
+      lng >= -180 &&
+      lng <= 180
+    );
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    const title = formData.title.trim();
+    const description = formData.description.trim();
+    const address = formData.address.trim();
+    const city = formData.city.trim();
+    const locality = formData.locality.trim();
+    const contactName = formData.contactName.trim();
+
+    /* TITLE */
+
+    if (!title) {
+      newErrors.title = "Room title is required.";
+    } else if (title.length < 3) {
+      newErrors.title =
+        "Room title must be at least 3 characters.";
+    } else if (title.length > 100) {
+      newErrors.title =
+        "Room title cannot exceed 100 characters.";
+    }
+
+    /* DESCRIPTION */
+
+    if (!description) {
+      newErrors.description =
+        "Room description is required.";
+    } else if (description.length < 20) {
+      newErrors.description =
+        "Description must be at least 20 characters.";
+    } else if (description.length > 2000) {
+      newErrors.description =
+        "Description cannot exceed 2000 characters.";
+    }
+
+    /* RENT */
+
+    const rent = Number(formData.rent);
+
+    if (!formData.rent.trim()) {
+      newErrors.rent = "Monthly rent is required.";
+    } else if (!Number.isFinite(rent) || rent <= 0) {
+      newErrors.rent =
+        "Monthly rent must be greater than ₹0.";
+    } else if (rent > 10000000) {
+      newErrors.rent =
+        "Please enter a valid monthly rent.";
+    }
+
+    /* ROOM TYPE */
+
+    if (!ALLOWED_ROOM_TYPES.includes(formData.roomType)) {
+      newErrors.roomType = "Please select a valid room type.";
+    }
+
+    /* LOCATION */
+
+    if (!address) {
+      newErrors.address = "Address is required.";
+    } else if (address.length < 5) {
+      newErrors.address =
+        "Please enter a more specific address.";
+    }
+
+    if (!city) {
+      newErrors.city = "City is required.";
+    } else if (city.length < 2) {
+      newErrors.city = "Please enter a valid city.";
+    }
+
+    if (!locality) {
+      newErrors.locality = "Locality is required.";
+    } else if (locality.length < 2) {
+      newErrors.locality =
+        "Please enter a valid locality.";
+    }
+
+    if (!formData.latitude || !formData.longitude) {
+      newErrors.location =
+        "Please select a valid location on the map.";
+    } else if (
+      !validateCoordinates(
+        formData.latitude,
+        formData.longitude
+      )
+    ) {
+      newErrors.location =
+        "Latitude or longitude is invalid.";
+    }
+
+    /* CONTACT */
+
+    if (!contactName) {
+      newErrors.contactName =
+        "Contact name is required.";
+    } else if (contactName.length < 2) {
+      newErrors.contactName =
+        "Please enter a valid contact name.";
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone number is required.";
+    } else if (!validatePhone(formData.phone)) {
+      newErrors.phone =
+        "Enter a valid Indian mobile number.";
+    }
+
+    if (
+      formData.whatsapp.trim() &&
+      !validatePhone(formData.whatsapp)
+    ) {
+      newErrors.whatsapp =
+        "Enter a valid Indian WhatsApp number.";
+    }
+
+    /* IMAGES */
+
+    if (images.length > 5) {
+      newErrors.images =
+        "You can upload maximum 5 images.";
+    }
+
+    images.forEach((image) => {
+      if (!ALLOWED_IMAGE_TYPES.includes(image.type)) {
+        newErrors.images =
+          "Only JPG, JPEG, PNG or WEBP images are allowed.";
+      }
+
+      if (image.size > MAX_IMAGE_SIZE) {
+        newErrors.images =
+          "Each image must be 5 MB or smaller.";
+      }
+    });
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  };
 
   /* =========================================================
      INPUT
@@ -54,13 +245,28 @@ const AddRoom = () => {
       [name]: value,
     }));
 
+    setErrors((prev) => ({
+      ...prev,
+      [name]: "",
+      location:
+        name === "latitude" || name === "longitude"
+          ? ""
+          : prev.location,
+    }));
+
     if (
       name === "address" ||
       name === "city" ||
       name === "locality"
     ) {
       setLocationMessage("");
+      setErrors((prev) => ({
+        ...prev,
+        location: "",
+      }));
     }
+
+    setMessage("");
   };
 
   /* =========================================================
@@ -78,6 +284,13 @@ const AddRoom = () => {
       ...prev,
       latitude: lat.toFixed(6),
       longitude: lng.toFixed(6),
+    }));
+
+    setErrors((prev) => ({
+      ...prev,
+      latitude: "",
+      longitude: "",
+      location: "",
     }));
 
     setLocationLoading(true);
@@ -125,6 +338,16 @@ const AddRoom = () => {
         address: displayAddress,
         city,
         locality,
+      }));
+
+      setErrors((prev) => ({
+        ...prev,
+        address: "",
+        city: "",
+        locality: "",
+        latitude: "",
+        longitude: "",
+        location: "",
       }));
 
       setLocationMessage(
@@ -219,9 +442,12 @@ const AddRoom = () => {
           longitude: longitude.toFixed(6),
         }));
 
-        setLocationMessage(
-          "Map location updated."
-        );
+        setErrors((prev) => ({
+          ...prev,
+          location: "",
+        }));
+
+        setLocationMessage("Map location updated.");
       } catch (error) {
         console.error("Geocoding error:", error);
 
@@ -245,22 +471,69 @@ const AddRoom = () => {
   ========================================================= */
 
   const handleImageChange = (e) => {
-    const selectedFiles = Array.from(e.target.files);
+    const selectedFiles = Array.from(e.target.files || []);
+
+    if (selectedFiles.length === 0) {
+      return;
+    }
 
     if (selectedFiles.length + images.length > 5) {
-      setMessage("You can upload maximum 5 images");
+      setErrors((prev) => ({
+        ...prev,
+        images: "You can upload maximum 5 images.",
+      }));
+      e.target.value = "";
+      return;
+    }
+
+    const invalidType = selectedFiles.find(
+      (file) => !ALLOWED_IMAGE_TYPES.includes(file.type)
+    );
+
+    if (invalidType) {
+      setErrors((prev) => ({
+        ...prev,
+        images:
+          "Only JPG, JPEG, PNG or WEBP images are allowed.",
+      }));
+      e.target.value = "";
+      return;
+    }
+
+    const oversizedFile = selectedFiles.find(
+      (file) => file.size > MAX_IMAGE_SIZE
+    );
+
+    if (oversizedFile) {
+      setErrors((prev) => ({
+        ...prev,
+        images:
+          "Each image must be 5 MB or smaller.",
+      }));
+      e.target.value = "";
       return;
     }
 
     setImages((prev) => [...prev, ...selectedFiles]);
 
+    setErrors((prev) => ({
+      ...prev,
+      images: "",
+    }));
+
     setMessage("");
+    e.target.value = "";
   };
 
   const removeImage = (index) => {
     setImages((prev) =>
       prev.filter((_, i) => i !== index)
     );
+
+    setErrors((prev) => ({
+      ...prev,
+      images: "",
+    }));
   };
 
   /* =========================================================
@@ -270,61 +543,73 @@ const AddRoom = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    setLoading(true);
+    if (loading) return;
+
     setMessage("");
+
+    const isValid = validateForm();
+
+    if (!isValid) {
+      setMessage(
+        "Please fix the highlighted fields before posting."
+      );
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const token = localStorage.getItem("plutoToken");
 
       if (!token) {
-        setMessage("Please login first");
+        setMessage("Please login first.");
         setLoading(false);
-        return;
-      }
-
-      if (
-        !formData.latitude ||
-        !formData.longitude
-      ) {
-        setMessage(
-          "Please select a location on the map or enter a valid address."
-        );
-        setLoading(false);
+        navigate("/login");
         return;
       }
 
       const roomData = new FormData();
 
-      roomData.append("title", formData.title);
+      roomData.append(
+        "title",
+        formData.title.trim()
+      );
+
       roomData.append(
         "description",
-        formData.description
+        formData.description.trim()
       );
+
       roomData.append(
         "rent",
         Number(formData.rent)
       );
+
       roomData.append(
         "roomType",
         formData.roomType
       );
 
-      roomData.append(
-        "amenities",
-        JSON.stringify(
+      const amenities = [
+        ...new Set(
           formData.amenities
             .split(",")
             .map((item) => item.trim())
             .filter(Boolean)
-        )
+        ),
+      ];
+
+      roomData.append(
+        "amenities",
+        JSON.stringify(amenities)
       );
 
       roomData.append(
         "location",
         JSON.stringify({
-          address: formData.address,
-          city: formData.city,
-          locality: formData.locality,
+          address: formData.address.trim(),
+          city: formData.city.trim(),
+          locality: formData.locality.trim(),
           coordinates: {
             type: "Point",
             coordinates: [
@@ -338,9 +623,9 @@ const AddRoom = () => {
       roomData.append(
         "contact",
         JSON.stringify({
-          name: formData.contactName,
-          phone: formData.phone,
-          whatsapp: formData.whatsapp,
+          name: formData.contactName.trim(),
+          phone: formData.phone.trim(),
+          whatsapp: formData.whatsapp.trim(),
         })
       );
 
@@ -358,7 +643,10 @@ const AddRoom = () => {
         }
       );
 
-      setMessage(response.data.message);
+      setMessage(
+        response.data.message ||
+          "Room posted successfully."
+      );
 
       setFormData({
         title: "",
@@ -377,11 +665,14 @@ const AddRoom = () => {
       });
 
       setImages([]);
+      setErrors({});
       setLocationMessage("");
     } catch (error) {
+      console.error("Create room error:", error);
+
       setMessage(
         error.response?.data?.message ||
-          "Something went wrong"
+          "Something went wrong while posting the room."
       );
     } finally {
       setLoading(false);
@@ -390,16 +681,9 @@ const AddRoom = () => {
 
   return (
     <main className="min-h-screen bg-[#F5F3EA] text-[#171A18]">
-
-      {/* =====================================================
-          PAGE HEADER
-      ===================================================== */}
-
       <section className="border-b border-[#DDDCD3] bg-white">
         <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-10 lg:py-14">
-
           <div className="flex flex-col gap-7 sm:flex-row sm:items-end sm:justify-between">
-
             <div>
               <div className="mb-5 flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center bg-[#173F2B] text-[#E6B84A]">
@@ -436,41 +720,25 @@ const AddRoom = () => {
                 Details → Location → Connect
               </p>
             </div>
-
           </div>
         </div>
       </section>
 
-      {/* =====================================================
-          FORM AREA
-      ===================================================== */}
-
       <section className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:px-10 lg:py-12">
-
         <form onSubmit={handleSubmit}>
-
           <div className="grid gap-7 lg:grid-cols-[1fr_300px]">
-
-            {/* =================================================
-                MAIN FORM
-            ================================================= */}
-
             <div className="space-y-7">
-
-              {/* BASIC DETAILS */}
-
               <FormSection
                 number="01"
                 title="Tell us about the room"
                 description="Give your listing enough detail for someone to understand the space."
               >
-
                 <div className="space-y-5">
-
                   <Field
                     label="Room title"
                     required
                     hint="A short, clear title works best."
+                    error={errors.title}
                   >
                     <input
                       type="text"
@@ -479,7 +747,9 @@ const AddRoom = () => {
                       onChange={handleChange}
                       placeholder="e.g. Spacious room near college"
                       required
-                      className="input"
+                      className={`input ${
+                        errors.title ? "input-error" : ""
+                      }`}
                     />
                   </Field>
 
@@ -487,6 +757,7 @@ const AddRoom = () => {
                     label="Description"
                     required
                     hint="Mention anything useful: surroundings, house rules, availability, etc."
+                    error={errors.description}
                   >
                     <textarea
                       name="description"
@@ -495,15 +766,19 @@ const AddRoom = () => {
                       placeholder="Describe the room, surroundings, rules..."
                       rows={6}
                       required
-                      className="input resize-none"
+                      className={`input resize-none ${
+                        errors.description
+                          ? "input-error"
+                          : ""
+                      }`}
                     />
                   </Field>
 
                   <div className="grid gap-5 sm:grid-cols-2">
-
                     <Field
                       label="Monthly rent"
                       required
+                      error={errors.rent}
                     >
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#858982]">
@@ -516,9 +791,13 @@ const AddRoom = () => {
                           value={formData.rent}
                           onChange={handleChange}
                           placeholder="8000"
-                          min="0"
+                          min="1"
                           required
-                          className="input pl-9"
+                          className={`input pl-9 ${
+                            errors.rent
+                              ? "input-error"
+                              : ""
+                          }`}
                         />
                       </div>
                     </Field>
@@ -526,32 +805,29 @@ const AddRoom = () => {
                     <Field
                       label="Room type"
                       required
+                      error={errors.roomType}
                     >
                       <div className="relative">
                         <select
                           name="roomType"
                           value={formData.roomType}
                           onChange={handleChange}
-                          className="input appearance-none pr-10"
+                          className={`input appearance-none pr-10 ${
+                            errors.roomType
+                              ? "input-error"
+                              : ""
+                          }`}
                         >
-                          <option value="Single">
-                            Single
-                          </option>
-                          <option value="Shared">
-                            Shared
-                          </option>
-                          <option value="1 BHK">
-                            1 BHK
-                          </option>
-                          <option value="2 BHK">
-                            2 BHK
-                          </option>
-                          <option value="PG">
-                            PG
-                          </option>
-                          <option value="Other">
-                            Other
-                          </option>
+                          {ALLOWED_ROOM_TYPES.map(
+                            (type) => (
+                              <option
+                                key={type}
+                                value={type}
+                              >
+                                {type}
+                              </option>
+                            )
+                          )}
                         </select>
 
                         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#747872]">
@@ -559,7 +835,6 @@ const AddRoom = () => {
                         </span>
                       </div>
                     </Field>
-
                   </div>
 
                   <Field
@@ -575,12 +850,8 @@ const AddRoom = () => {
                       className="input"
                     />
                   </Field>
-
                 </div>
-
               </FormSection>
-
-              {/* IMAGES */}
 
               <FormSection
                 number="02"
@@ -592,27 +863,7 @@ const AddRoom = () => {
                   </span>
                 }
               >
-
-                <label
-                  className="
-                    group
-                    flex
-                    min-h-44
-                    cursor-pointer
-                    flex-col
-                    items-center
-                    justify-center
-                    border-2
-                    border-dashed
-                    border-[#CFCFC5]
-                    bg-[#FAF9F4]
-                    px-6
-                    text-center
-                    transition
-                    hover:border-[#829685]
-                    hover:bg-[#F3F6F0]
-                  "
-                >
+                <label className="group flex min-h-44 cursor-pointer flex-col items-center justify-center border-2 border-dashed border-[#CFCFC5] bg-[#FAF9F4] px-6 text-center transition hover:border-[#829685] hover:bg-[#F3F6F0]">
                   <div className="flex h-12 w-12 items-center justify-center bg-[#E9EFE7] text-[#173F2B] transition group-hover:bg-[#E1EAE1]">
                     <Upload size={21} />
                   </div>
@@ -622,24 +873,30 @@ const AddRoom = () => {
                   </p>
 
                   <p className="mt-1 text-xs text-[#8A8D87]">
-                    JPG, JPEG or PNG · Up to 5 images
+                    JPG, JPEG, PNG or WEBP · Up to 5 images ·
+                    Max 5 MB each
                   </p>
 
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/jpg"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
                     multiple
                     onChange={handleImageChange}
                     className="hidden"
                   />
                 </label>
 
+                {errors.images && (
+                  <p className="mt-2 text-xs font-semibold text-[#B44E32]">
+                    {errors.images}
+                  </p>
+                )}
+
                 {images.length > 0 && (
                   <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-
                     {images.map((image, index) => (
                       <ImagePreview
-                        key={`${image.name}-${index}`}
+                        key={`${image.name}-${image.lastModified}-${index}`}
                         image={image}
                         index={index}
                         onRemove={() =>
@@ -647,25 +904,20 @@ const AddRoom = () => {
                         }
                       />
                     ))}
-
                   </div>
                 )}
-
               </FormSection>
-
-              {/* LOCATION */}
 
               <FormSection
                 number="03"
                 title="Set the location"
                 description="Enter the address or select the exact point directly on the map."
               >
-
                 <div className="space-y-5">
-
                   <Field
                     label="Address"
                     required
+                    error={errors.address}
                   >
                     <input
                       type="text"
@@ -674,15 +926,19 @@ const AddRoom = () => {
                       onChange={handleChange}
                       placeholder="Full address"
                       required
-                      className="input"
+                      className={`input ${
+                        errors.address
+                          ? "input-error"
+                          : ""
+                      }`}
                     />
                   </Field>
 
                   <div className="grid gap-5 sm:grid-cols-2">
-
                     <Field
                       label="City"
                       required
+                      error={errors.city}
                     >
                       <input
                         type="text"
@@ -691,13 +947,18 @@ const AddRoom = () => {
                         onChange={handleChange}
                         placeholder="Lucknow"
                         required
-                        className="input"
+                        className={`input ${
+                          errors.city
+                            ? "input-error"
+                            : ""
+                        }`}
                       />
                     </Field>
 
                     <Field
                       label="Locality"
                       required
+                      error={errors.locality}
                     >
                       <input
                         type="text"
@@ -706,18 +967,17 @@ const AddRoom = () => {
                         onChange={handleChange}
                         placeholder="Gomti Nagar"
                         required
-                        className="input"
+                        className={`input ${
+                          errors.locality
+                            ? "input-error"
+                            : ""
+                        }`}
                       />
                     </Field>
-
                   </div>
 
-                  {/* MAP */}
-
                   <div className="border border-[#DAD9D0] bg-[#FAF9F4] p-3">
-
                     <div className="mb-3 flex items-start gap-3 px-1 py-1">
-
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
                         <MapPin size={16} />
                       </div>
@@ -733,7 +993,6 @@ const AddRoom = () => {
                           saved with the listing.
                         </p>
                       </div>
-
                     </div>
 
                     <div className="overflow-hidden border border-[#D6D5CC]">
@@ -754,7 +1013,6 @@ const AddRoom = () => {
                     </div>
 
                     <div className="flex min-h-8 items-center gap-2 px-1 pt-3">
-
                       {locationLoading && (
                         <>
                           <Loader2
@@ -781,16 +1039,21 @@ const AddRoom = () => {
                             </span>
                           </>
                         )}
-
                     </div>
-
                   </div>
 
-                  {/* COORDINATES */}
+                  {errors.location && (
+                    <p className="text-xs font-semibold text-[#B44E32]">
+                      {errors.location}
+                    </p>
+                  )}
 
                   <div className="grid gap-5 sm:grid-cols-2">
-
-                    <Field label="Latitude" required>
+                    <Field
+                      label="Latitude"
+                      required
+                      error={errors.latitude}
+                    >
                       <input
                         type="number"
                         step="any"
@@ -799,11 +1062,19 @@ const AddRoom = () => {
                         onChange={handleChange}
                         placeholder="26.8467"
                         required
-                        className="input font-mono text-xs"
+                        className={`input font-mono text-xs ${
+                          errors.latitude
+                            ? "input-error"
+                            : ""
+                        }`}
                       />
                     </Field>
 
-                    <Field label="Longitude" required>
+                    <Field
+                      label="Longitude"
+                      required
+                      error={errors.longitude}
+                    >
                       <input
                         type="number"
                         step="any"
@@ -812,29 +1083,27 @@ const AddRoom = () => {
                         onChange={handleChange}
                         placeholder="80.9462"
                         required
-                        className="input font-mono text-xs"
+                        className={`input font-mono text-xs ${
+                          errors.longitude
+                            ? "input-error"
+                            : ""
+                        }`}
                       />
                     </Field>
-
                   </div>
-
                 </div>
-
               </FormSection>
-
-              {/* CONTACT */}
 
               <FormSection
                 number="04"
                 title="How should people reach you?"
                 description="These details will be shown to people interested in your listing."
               >
-
                 <div className="space-y-5">
-
                   <Field
                     label="Contact name"
                     required
+                    error={errors.contactName}
                   >
                     <input
                       type="text"
@@ -843,15 +1112,20 @@ const AddRoom = () => {
                       onChange={handleChange}
                       placeholder="Your name"
                       required
-                      className="input"
+                      className={`input ${
+                        errors.contactName
+                          ? "input-error"
+                          : ""
+                      }`}
                     />
                   </Field>
 
                   <div className="grid gap-5 sm:grid-cols-2">
-
                     <Field
                       label="Phone"
                       required
+                      hint="10-digit Indian mobile number."
+                      error={errors.phone}
                     >
                       <input
                         type="tel"
@@ -860,39 +1134,40 @@ const AddRoom = () => {
                         onChange={handleChange}
                         placeholder="9876543210"
                         required
-                        className="input"
+                        className={`input ${
+                          errors.phone
+                            ? "input-error"
+                            : ""
+                        }`}
                       />
                     </Field>
 
-                    <Field label="WhatsApp">
+                    <Field
+                      label="WhatsApp"
+                      hint="Optional."
+                      error={errors.whatsapp}
+                    >
                       <input
                         type="tel"
                         name="whatsapp"
                         value={formData.whatsapp}
                         onChange={handleChange}
                         placeholder="9876543210"
-                        className="input"
+                        className={`input ${
+                          errors.whatsapp
+                            ? "input-error"
+                            : ""
+                        }`}
                       />
                     </Field>
-
                   </div>
-
                 </div>
-
               </FormSection>
-
             </div>
 
-            {/* =================================================
-                SIDE SUMMARY
-            ================================================= */}
-
             <aside className="hidden lg:block">
-
               <div className="sticky top-24 space-y-5">
-
                 <div className="border border-[#D8D7CE] bg-white">
-
                   <div className="border-b border-[#E1E0D8] px-5 py-4">
                     <p className="text-[9px] font-bold uppercase tracking-[0.17em] text-[#55745F]">
                       Listing checklist
@@ -904,13 +1179,13 @@ const AddRoom = () => {
                   </div>
 
                   <div className="divide-y divide-[#ECEBE4]">
-
                     <ChecklistItem
                       number="01"
                       text="Clear title & description"
                       done={
-                        Boolean(formData.title) &&
-                        Boolean(formData.description)
+                        formData.title.trim().length >= 3 &&
+                        formData.description.trim()
+                          .length >= 20
                       }
                     />
 
@@ -918,7 +1193,7 @@ const AddRoom = () => {
                       number="02"
                       text="Rent & room type"
                       done={
-                        Boolean(formData.rent) &&
+                        Number(formData.rent) > 0 &&
                         Boolean(formData.roomType)
                       }
                     />
@@ -932,27 +1207,24 @@ const AddRoom = () => {
                     <ChecklistItem
                       number="04"
                       text="Exact location"
-                      done={
-                        Boolean(formData.latitude) &&
-                        Boolean(formData.longitude)
-                      }
+                      done={validateCoordinates(
+                        formData.latitude,
+                        formData.longitude
+                      )}
                     />
 
                     <ChecklistItem
                       number="05"
                       text="Contact details"
                       done={
-                        Boolean(formData.contactName) &&
-                        Boolean(formData.phone)
+                        formData.contactName.trim().length >= 2 &&
+                        validatePhone(formData.phone)
                       }
                     />
-
                   </div>
-
                 </div>
 
                 <div className="border border-[#D8D7CE] bg-[#E9EFE7] p-5">
-
                   <div className="flex h-9 w-9 items-center justify-center bg-[#173F2B] text-[#E6B84A]">
                     <Home size={16} />
                   </div>
@@ -967,23 +1239,13 @@ const AddRoom = () => {
                     decide whether your space is right for
                     them.
                   </p>
-
                 </div>
-
               </div>
-
             </aside>
-
           </div>
 
-          {/* =================================================
-              SUBMIT AREA
-          ================================================= */}
-
           <div className="mt-8 border-t border-[#D8D7CE] pt-7">
-
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-
               <div>
                 <p className="text-xs font-bold text-[#34483A]">
                   Ready to share your space?
@@ -997,25 +1259,7 @@ const AddRoom = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="
-                  group
-                  flex
-                  w-full
-                  items-center
-                  justify-center
-                  gap-3
-                  bg-[#173F2B]
-                  px-7
-                  py-4
-                  text-sm
-                  font-bold
-                  text-white
-                  transition
-                  hover:bg-[#102F20]
-                  disabled:cursor-not-allowed
-                  disabled:opacity-50
-                  sm:w-auto
-                "
+                className="group flex w-full items-center justify-center gap-3 bg-[#173F2B] px-7 py-4 text-sm font-bold text-white transition hover:bg-[#102F20] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {loading
                   ? "Posting room..."
@@ -1028,42 +1272,50 @@ const AddRoom = () => {
                   />
                 )}
               </button>
-
             </div>
 
             {message && (
               <div
-                className={`
-                  mt-5
-                  border
-                  px-4
-                  py-3
-                  text-xs
-                  font-semibold
-                  ${
-                    message.toLowerCase().includes("wrong") ||
-                    message.toLowerCase().includes("login") ||
-                    message.toLowerCase().includes("please")
-                      ? "border-[#E2C7BC] bg-[#F8EDE8] text-[#9A5037]"
-                      : "border-[#C8D5C9] bg-[#E9EFE7] text-[#31543D]"
-                  }
-                `}
+                className={`mt-5 border px-4 py-3 text-xs font-semibold ${
+                  message
+                    .toLowerCase()
+                    .includes("success")
+                    ? "border-[#C8D5C9] bg-[#E9EFE7] text-[#31543D]"
+                    : "border-[#E2C7BC] bg-[#F8EDE8] text-[#9A5037]"
+                }`}
               >
                 {message}
               </div>
             )}
-
           </div>
-
         </form>
       </section>
+
+      <style>{`
+        .input {
+          width: 100%;
+          border: 1px solid #d6d5cc;
+          background: #faf9f4;
+          padding: 12px 16px;
+          font-size: 14px;
+          color: #171a18;
+          outline: none;
+          transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        .input:focus {
+          border-color: #829685;
+          background: #ffffff;
+        }
+
+        .input-error {
+          border-color: #c96b45 !important;
+          background: #fff8f5 !important;
+        }
+      `}</style>
     </main>
   );
 };
-
-/* =============================================================
-   FORM SECTION
-============================================================= */
 
 const FormSection = ({
   number,
@@ -1074,11 +1326,8 @@ const FormSection = ({
 }) => {
   return (
     <section className="border border-[#D8D7CE] bg-white">
-
       <div className="flex items-start justify-between gap-5 border-b border-[#E2E1D9] px-5 py-5 sm:px-7">
-
         <div className="flex gap-4">
-
           <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-[#E9EFE7] text-[10px] font-bold text-[#173F2B]">
             {number}
           </span>
@@ -1092,29 +1341,23 @@ const FormSection = ({
               {description}
             </p>
           </div>
-
         </div>
 
         {right}
-
       </div>
 
       <div className="p-5 sm:p-7">
         {children}
       </div>
-
     </section>
   );
 };
-
-/* =============================================================
-   FIELD
-============================================================= */
 
 const Field = ({
   label,
   required = false,
   hint,
+  error,
   children,
 }) => {
   return (
@@ -1129,18 +1372,18 @@ const Field = ({
 
       {children}
 
-      {hint && (
+      {error ? (
+        <p className="mt-1.5 text-[10px] font-semibold leading-4 text-[#B44E32]">
+          {error}
+        </p>
+      ) : hint ? (
         <p className="mt-1.5 text-[10px] leading-4 text-[#969992]">
           {hint}
         </p>
-      )}
+      ) : null}
     </div>
   );
 };
-
-/* =============================================================
-   IMAGE PREVIEW
-============================================================= */
 
 const ImagePreview = ({
   image,
@@ -1161,7 +1404,6 @@ const ImagePreview = ({
 
   return (
     <div className="group relative aspect-square overflow-hidden border border-[#D8D7CE] bg-[#EEEDE6]">
-
       {preview && (
         <img
           src={preview}
@@ -1182,14 +1424,9 @@ const ImagePreview = ({
       >
         <X size={14} />
       </button>
-
     </div>
   );
 };
-
-/* =============================================================
-   CHECKLIST
-============================================================= */
 
 const ChecklistItem = ({
   number,
@@ -1198,21 +1435,12 @@ const ChecklistItem = ({
 }) => {
   return (
     <div className="flex items-center gap-3 px-5 py-4">
-
       <span
-        className={`
-          flex
-          h-7
-          w-7
-          shrink-0
-          items-center
-          justify-center
-          ${
-            done
-              ? "bg-[#173F2B] text-[#E6B84A]"
-              : "bg-[#F1F0E9] text-[#8B8E87]"
-          }
-        `}
+        className={`flex h-7 w-7 shrink-0 items-center justify-center ${
+          done
+            ? "bg-[#173F2B] text-[#E6B84A]"
+            : "bg-[#F1F0E9] text-[#8B8E87]"
+        }`}
       >
         {done ? (
           <Check size={13} strokeWidth={3} />
@@ -1224,18 +1452,14 @@ const ChecklistItem = ({
       </span>
 
       <span
-        className={`
-          text-xs font-semibold
-          ${
-            done
-              ? "text-[#34483A]"
-              : "text-[#858982]"
-          }
-        `}
+        className={`text-xs font-semibold ${
+          done
+            ? "text-[#34483A]"
+            : "text-[#858982]"
+        }`}
       >
         {text}
       </span>
-
     </div>
   );
 };

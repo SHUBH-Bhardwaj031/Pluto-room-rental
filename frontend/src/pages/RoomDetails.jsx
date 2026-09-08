@@ -1,5 +1,13 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+
 import axios from "axios";
 
 import ReportListing from "../components/ReportListing";
@@ -18,16 +26,21 @@ import {
 import MapView from "../components/MapView";
 
 const RoomDetails = () => {
-  const location = useLocation();
   const navigate = useNavigate();
 
-  const [showReportForm, setShowReportForm] = useState(false);
+  const { id: roomId } = useParams();
 
-  const roomId = location.state?.roomId;
+  const [showReportForm, setShowReportForm] =
+    useState(false);
 
-  const [room, setRoom] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
+  const [room, setRoom] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [message, setMessage] =
+    useState("");
 
   // =========================================================
   // SCROLL TO TOP
@@ -43,7 +56,10 @@ const RoomDetails = () => {
 
   useEffect(() => {
     const fetchRoom = async () => {
-      const token = localStorage.getItem("plutoToken");
+      const token =
+        localStorage.getItem(
+          "plutoToken"
+        );
 
       /*
       =========================================================
@@ -59,12 +75,19 @@ const RoomDetails = () => {
         return;
       }
 
+      /*
+      =========================================================
+         ROOM ID REQUIRED
+      =========================================================
+      */
+
       if (!roomId) {
         setMessage(
           "Room information is missing. Please open the room from the listings."
         );
 
         setLoading(false);
+
         return;
       }
 
@@ -72,14 +95,15 @@ const RoomDetails = () => {
         setLoading(true);
         setMessage("");
 
-        const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/rooms/${roomId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const response =
+          await axios.get(
+            `${import.meta.env.VITE_API_URL}/api/rooms/${roomId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
 
         /*
         =======================================================
@@ -90,9 +114,15 @@ const RoomDetails = () => {
            this protected endpoint is requested.
         */
 
-        setRoom(response.data.room);
+        setRoom(
+          response.data?.room ||
+            null
+        );
       } catch (error) {
-        console.error("Fetch room error:", error);
+        console.error(
+          "Fetch room error:",
+          error
+        );
 
         /*
         =======================================================
@@ -100,9 +130,17 @@ const RoomDetails = () => {
         =======================================================
         */
 
-        if (error.response?.status === 401) {
-          localStorage.removeItem("plutoToken");
-          localStorage.removeItem("plutoUser");
+        if (
+          error.response?.status ===
+          401
+        ) {
+          localStorage.removeItem(
+            "plutoToken"
+          );
+
+          localStorage.removeItem(
+            "plutoUser"
+          );
 
           navigate("/login", {
             replace: true,
@@ -112,7 +150,8 @@ const RoomDetails = () => {
         }
 
         setMessage(
-          error.response?.data?.message ||
+          error.response?.data
+            ?.message ||
             "Unable to load room details"
         );
       } finally {
@@ -130,23 +169,35 @@ const RoomDetails = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F5F3EA]">
+
         <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:px-10">
+
           <div className="animate-pulse">
+
             <div className="mb-8 h-5 w-28 bg-[#E1E2D9]" />
 
             <div className="h-[320px] bg-[#E5E4DC] md:h-[520px]" />
 
             <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+
               <div>
+
                 <div className="h-9 w-3/4 bg-[#E1E2D9]" />
+
                 <div className="mt-4 h-5 w-1/3 bg-[#E1E2D9]" />
+
                 <div className="mt-8 h-32 bg-[#E1E2D9]" />
+
               </div>
 
               <div className="h-64 bg-[#E1E2D9]" />
+
             </div>
+
           </div>
+
         </div>
+
       </div>
     );
   }
@@ -155,10 +206,15 @@ const RoomDetails = () => {
   // ERROR
   // =========================================================
 
-  if (message || !room) {
+  if (
+    message ||
+    !room
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F5F3EA] px-5">
+
         <div className="max-w-md text-center">
+
           <div className="mx-auto flex h-16 w-16 items-center justify-center bg-[#E9EFE7] text-[#173F2B]">
             <Home size={28} />
           </div>
@@ -174,7 +230,11 @@ const RoomDetails = () => {
 
           <button
             type="button"
-            onClick={() => navigate("/find-rooms")}
+            onClick={() =>
+              navigate(
+                "/find-rooms"
+              )
+            }
             className="
               mt-7
               inline-flex
@@ -193,7 +253,9 @@ const RoomDetails = () => {
             <ArrowLeft size={16} />
             Back to rooms
           </button>
+
         </div>
+
       </div>
     );
   }
@@ -203,20 +265,31 @@ const RoomDetails = () => {
   // =========================================================
 
   const coordinates =
-    room.location?.coordinates?.coordinates;
+    room.location
+      ?.coordinates
+      ?.coordinates;
 
   const hasCoordinates =
-    Array.isArray(coordinates) &&
+    Array.isArray(
+      coordinates
+    ) &&
     coordinates.length === 2 &&
-    Number.isFinite(Number(coordinates[0])) &&
-    Number.isFinite(Number(coordinates[1]));
+    Number.isFinite(
+      Number(coordinates[0])
+    ) &&
+    Number.isFinite(
+      Number(coordinates[1])
+    );
 
   let latitude = null;
   let longitude = null;
 
   if (hasCoordinates) {
-    longitude = Number(coordinates[0]);
-    latitude = Number(coordinates[1]);
+    longitude =
+      Number(coordinates[0]);
+
+    latitude =
+      Number(coordinates[1]);
   }
 
   // =========================================================
@@ -224,7 +297,9 @@ const RoomDetails = () => {
   // =========================================================
 
   const handleDirections = () => {
-    if (!hasCoordinates) return;
+    if (!hasCoordinates) {
+      return;
+    }
 
     const googleMapsUrl =
       `https://www.google.com/maps/dir/?api=1` +
@@ -246,28 +321,52 @@ const RoomDetails = () => {
       room.contact?.whatsapp ||
       room.contact?.phone;
 
-    if (!rawNumber) return "";
+    if (!rawNumber) {
+      return "";
+    }
 
-    let cleanNumber = rawNumber.replace(/\D/g, "");
+    let cleanNumber =
+      rawNumber.replace(
+        /\D/g,
+        ""
+      );
 
-    // Already an Indian international number
+    /*
+     * Already an Indian international number
+     */
+
     if (
-      cleanNumber.startsWith("91") &&
+      cleanNumber.startsWith(
+        "91"
+      ) &&
       cleanNumber.length === 12
     ) {
       return cleanNumber;
     }
 
-    // Indian number written with leading zero
+    /*
+     * Indian number written with leading zero
+     */
+
     if (
-      cleanNumber.startsWith("0") &&
+      cleanNumber.startsWith(
+        "0"
+      ) &&
       cleanNumber.length === 11
     ) {
-      cleanNumber = cleanNumber.substring(1);
+      cleanNumber =
+        cleanNumber.substring(
+          1
+        );
     }
 
-    // Standard Indian 10-digit mobile number
-    if (cleanNumber.length === 10) {
+    /*
+     * Standard Indian 10-digit mobile number
+     */
+
+    if (
+      cleanNumber.length === 10
+    ) {
       return `91${cleanNumber}`;
     }
 
@@ -279,9 +378,12 @@ const RoomDetails = () => {
   // =========================================================
 
   const handleWhatsApp = () => {
-    const cleanNumber = getWhatsAppNumber();
+    const cleanNumber =
+      getWhatsAppNumber();
 
-    if (!cleanNumber) return;
+    if (!cleanNumber) {
+      return;
+    }
 
     const messageText =
       `Hi, I found your room "${room.title}" on Pluto. ` +
@@ -289,7 +391,9 @@ const RoomDetails = () => {
 
     const whatsappUrl =
       `https://wa.me/${cleanNumber}` +
-      `?text=${encodeURIComponent(messageText)}`;
+      `?text=${encodeURIComponent(
+        messageText
+      )}`;
 
     window.open(
       whatsappUrl,
@@ -303,20 +407,26 @@ const RoomDetails = () => {
   // =========================================================
 
   const handleCall = () => {
-    if (!room.contact?.phone) return;
+    if (
+      !room.contact?.phone
+    ) {
+      return;
+    }
 
     window.location.href =
       `tel:${room.contact.phone}`;
   };
 
-  const hasPhone = Boolean(
-    room.contact?.phone
-  );
-
-  const hasWhatsApp = Boolean(
-    room.contact?.whatsapp ||
+  const hasPhone =
+    Boolean(
       room.contact?.phone
-  );
+    );
+
+  const hasWhatsApp =
+    Boolean(
+      room.contact?.whatsapp ||
+        room.contact?.phone
+    );
 
   return (
     <div className="min-h-screen bg-[#F5F3EA] text-[#171A18]">
@@ -326,11 +436,14 @@ const RoomDetails = () => {
       ===================================================== */}
 
       <div className="border-b border-[#DDDCD3] bg-[#F5F3EA]">
+
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
 
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() =>
+              navigate(-1)
+            }
             className="
               inline-flex
               items-center
@@ -351,6 +464,7 @@ const RoomDetails = () => {
           </span>
 
         </div>
+
       </div>
 
       {/* =====================================================
@@ -375,6 +489,7 @@ const RoomDetails = () => {
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
+
                 <div className="text-center">
 
                   <div className="mx-auto flex h-16 w-16 items-center justify-center bg-white text-[#55745F]">
@@ -386,6 +501,7 @@ const RoomDetails = () => {
                   </p>
 
                 </div>
+
               </div>
             )}
 
@@ -399,10 +515,14 @@ const RoomDetails = () => {
                 {room.roomType}
               </span>
 
-              {room.status === "available" ? (
+              {room.status ===
+              "available" ? (
                 <span className="flex items-center gap-2 bg-[#E6B84A] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[#173F2B]">
+
                   <span className="h-1.5 w-1.5 rounded-full bg-[#173F2B]" />
+
                   Available
+
                 </span>
               ) : (
                 <span className="bg-[#333934] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.1em] text-white">
@@ -413,6 +533,7 @@ const RoomDetails = () => {
             </div>
 
           </div>
+
         </div>
 
         {/* ===================================================
@@ -430,6 +551,7 @@ const RoomDetails = () => {
             {/* Title */}
 
             <div>
+
               <h1 className="text-3xl font-bold tracking-[-0.025em] text-[#171A18] sm:text-4xl lg:text-5xl">
                 {room.title}
               </h1>
@@ -442,15 +564,18 @@ const RoomDetails = () => {
                 />
 
                 <span className="text-sm font-medium">
-                  {room.location?.locality ||
+                  {room.location
+                    ?.locality ||
                     "Location"}
 
-                  {room.location?.city
+                  {room.location
+                    ?.city
                     ? `, ${room.location.city}`
                     : ""}
                 </span>
 
               </div>
+
             </div>
 
             {/* =================================================
@@ -464,6 +589,7 @@ const RoomDetails = () => {
                 {/* Monthly Rent */}
 
                 <div>
+
                   <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
                     Monthly rent
                   </p>
@@ -478,10 +604,13 @@ const RoomDetails = () => {
                     <span className="text-3xl font-bold">
                       {Number(
                         room.rent || 0
-                      ).toLocaleString("en-IN")}
+                      ).toLocaleString(
+                        "en-IN"
+                      )}
                     </span>
 
                   </div>
+
                 </div>
 
                 {/* Views */}
@@ -495,7 +624,9 @@ const RoomDetails = () => {
                   <p className="mt-1 text-2xl font-bold text-[#173F2B]">
                     {Number(
                       room.views || 0
-                    ).toLocaleString("en-IN")}
+                    ).toLocaleString(
+                      "en-IN"
+                    )}
                   </p>
 
                 </div>
@@ -520,7 +651,8 @@ const RoomDetails = () => {
 
             {/* Amenities */}
 
-            {room.amenities?.length > 0 && (
+            {room.amenities?.length >
+              0 && (
               <section className="mt-10">
 
                 <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
@@ -530,7 +662,10 @@ const RoomDetails = () => {
                 <div className="mt-4 flex flex-wrap gap-2">
 
                   {room.amenities.map(
-                    (amenity, index) => (
+                    (
+                      amenity,
+                      index
+                    ) => (
                       <span
                         key={`${amenity}-${index}`}
                         className="
@@ -572,33 +707,47 @@ const RoomDetails = () => {
                   />
 
                   <div>
+
                     <p className="text-sm font-bold text-[#26372C]">
-                      {room.location?.locality}
-                      {room.location?.city
+                      {room.location
+                        ?.locality}
+
+                      {room.location
+                        ?.city
                         ? `, ${room.location.city}`
                         : ""}
                     </p>
 
                     <p className="mt-1 text-xs leading-5 text-[#747872]">
-                      {room.location?.address}
+                      {room.location
+                        ?.address}
                     </p>
+
                   </div>
 
                 </div>
 
                 {hasCoordinates && (
                   <div className="overflow-hidden border border-[#E2E2DA]">
+
                     <MapView
-                      latitude={latitude}
-                      longitude={longitude}
+                      latitude={
+                        latitude
+                      }
+                      longitude={
+                        longitude
+                      }
                     />
+
                   </div>
                 )}
 
                 {hasCoordinates && (
                   <button
                     type="button"
-                    onClick={handleDirections}
+                    onClick={
+                      handleDirections
+                    }
                     className="
                       mt-4
                       flex
@@ -620,7 +769,9 @@ const RoomDetails = () => {
                       hover:bg-[#24583D]
                     "
                   >
-                    <Navigation size={15} />
+                    <Navigation
+                      size={15}
+                    />
                     Get Directions
                   </button>
                 )}
@@ -644,22 +795,27 @@ const RoomDetails = () => {
               <div className="flex items-start justify-between gap-4">
 
                 <div>
+
                   <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#979A93]">
                     Contact poster
                   </p>
 
                   <p className="mt-5 text-xl font-bold text-[#173F2B]">
-                    {room.contact?.name ||
+                    {room.contact
+                      ?.name ||
                       "Room poster"}
                   </p>
 
                   <p className="mt-1 text-sm text-[#747872]">
                     Interested in this room?
                   </p>
+
                 </div>
 
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center bg-[#F3E9C9] text-[#173F2B]">
-                  <MessageCircle size={20} />
+                  <MessageCircle
+                    size={20}
+                  />
                 </div>
 
               </div>
@@ -671,7 +827,9 @@ const RoomDetails = () => {
                 {hasPhone && (
                   <button
                     type="button"
-                    onClick={handleCall}
+                    onClick={
+                      handleCall
+                    }
                     className="
                       group
                       flex
@@ -702,7 +860,9 @@ const RoomDetails = () => {
                 {hasWhatsApp && (
                   <button
                     type="button"
-                    onClick={handleWhatsApp}
+                    onClick={
+                      handleWhatsApp
+                    }
                     className="
                       group
                       flex
@@ -734,9 +894,11 @@ const RoomDetails = () => {
                 {!hasPhone &&
                   !hasWhatsApp && (
                     <div className="border border-[#E3E0D6] bg-[#F7F6F0] px-4 py-4 text-center">
+
                       <p className="text-xs font-semibold text-[#747872]">
                         Contact information is not available.
                       </p>
+
                     </div>
                   )}
 
@@ -744,13 +906,16 @@ const RoomDetails = () => {
 
               {/* Safety / Contact Note */}
 
-              {(hasPhone || hasWhatsApp) && (
+              {(hasPhone ||
+                hasWhatsApp) && (
                 <div className="mt-5 border-l-2 border-[#E6B84A] bg-[#FBF8EA] px-4 py-3">
+
                   <p className="text-[11px] leading-5 text-[#697169]">
                     Contact the poster directly to confirm
                     availability, rent and other details
                     before visiting.
                   </p>
+
                 </div>
               )}
 
@@ -766,9 +931,15 @@ const RoomDetails = () => {
                   />
 
                   <p className="text-xs leading-5 text-[#747872]">
-                    {room.location?.address ||
-                      `${room.location?.locality || ""}${
-                        room.location?.city
+                    {room.location
+                      ?.address ||
+                      `${
+                        room.location
+                          ?.locality ||
+                        ""
+                      }${
+                        room.location
+                          ?.city
                           ? `, ${room.location.city}`
                           : ""
                       }`}
@@ -786,7 +957,11 @@ const RoomDetails = () => {
 
                 <button
                   type="button"
-                  onClick={() => setShowReportForm(true)}
+                  onClick={() =>
+                    setShowReportForm(
+                      true
+                    )
+                  }
                   className="
                     flex
                     items-center
@@ -829,7 +1004,11 @@ const RoomDetails = () => {
       {showReportForm && (
         <ReportListing
           roomId={roomId}
-          onClose={() => setShowReportForm(false)}
+          onClose={() =>
+            setShowReportForm(
+              false
+            )
+          }
         />
       )}
 

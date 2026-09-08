@@ -1,4 +1,10 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+
 import { useEffect } from "react";
 
 import Loader from "./components/Loader";
@@ -17,6 +23,7 @@ import SavedRooms from "./pages/SavedRooms";
 import Notifications from "./pages/Notifications";
 import Profile from "./pages/Profile";
 import EditRoom from "./pages/EditRoom";
+import AdminReports from "./pages/AdminReports";
 
 import AuthProvider from "./context/AuthContext";
 
@@ -51,15 +58,7 @@ const App = () => {
 
         <Loader />
 
-        {/* =================================================
-            NAVBAR
-        ================================================= */}
-
         <Navbar />
-
-        {/* =================================================
-            ROUTES
-        ================================================= */}
 
         <Routes>
 
@@ -93,40 +92,90 @@ const App = () => {
           />
 
           {/* =================================================
+              ADMIN
+          ================================================= */}
+
+          <Route
+            path="/admin/reports"
+            element={<AdminReports />}
+          />
+
+          {/* =================================================
               PROTECTED ROUTES
           ================================================= */}
 
           <Route element={<ProtectedRoute />}>
 
+            {/* -----------------------------------------------
+                ROOM DETAILS
+
+                Main/new URL:
+                /rooms/view-details/:id
+
+                Backward-compatible URL:
+                /rooms/:id
+
+                Both render the same RoomDetails page.
+            ------------------------------------------------ */}
+
             <Route
-              path="/rooms/view-details"
+              path="/rooms/view-details/:id"
               element={<RoomDetails />}
             />
+
+            <Route
+              path="/rooms/:id"
+              element={<RoomDetails />}
+            />
+
+            {/* -----------------------------------------------
+                ADD ROOM
+            ------------------------------------------------ */}
 
             <Route
               path="/add-room"
               element={<AddRoom />}
             />
 
+            {/* -----------------------------------------------
+                MY POSTS
+            ------------------------------------------------ */}
+
             <Route
               path="/my-posts"
               element={<MyPosts />}
             />
+
+            {/* -----------------------------------------------
+                SAVED ROOMS
+            ------------------------------------------------ */}
 
             <Route
               path="/saved-rooms"
               element={<SavedRooms />}
             />
 
+            {/* -----------------------------------------------
+                NOTIFICATIONS
+            ------------------------------------------------ */}
+
             <Route
               path="/notifications"
               element={<Notifications />}
             />
 
+            {/* -----------------------------------------------
+                PROFILE
+            ------------------------------------------------ */}
+
             <Route
               path="/profile"
               element={<Profile />}
             />
+
+            {/* -----------------------------------------------
+                EDIT ROOM
+            ------------------------------------------------ */}
 
             <Route
               path="/edit-room/:id"
@@ -136,10 +185,6 @@ const App = () => {
           </Route>
 
         </Routes>
-
-        {/* =================================================
-            FOOTER
-        ================================================= */}
 
         <Footer />
 

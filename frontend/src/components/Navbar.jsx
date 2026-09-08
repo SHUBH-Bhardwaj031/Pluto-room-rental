@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Menu,
@@ -9,8 +9,10 @@ import {
   LogOut,
   Bell,
   ArrowUpRight,
+  ShieldAlert,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import axios from "axios";
 import useAuth from "../hooks/useAuth";
 
 const Navbar = () => {
@@ -18,17 +20,73 @@ const Navbar = () => {
   const location = useLocation();
 
   const { user, logout } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isActive = (path) => location.pathname === path;
+  const [mobileOpen, setMobileOpen] =
+    useState(false);
+
+  const [unreadCount, setUnreadCount] =
+    useState(0);
+
+  const isActive = (path) =>
+    location.pathname === path;
+
+  const isAdmin =
+    user?.email?.toLowerCase() ===
+    import.meta.env.VITE_ADMIN_EMAIL?.toLowerCase();
+
+  /* =====================================================
+      FETCH UNREAD NOTIFICATION COUNT
+  ===================================================== */
+
+  useEffect(() => {
+    const fetchUnreadNotifications = async () => {
+      try {
+        const token =
+          localStorage.getItem("plutoToken");
+
+        if (!token) {
+          setUnreadCount(0);
+          return;
+        }
+
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/notifications`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setUnreadCount(
+          response.data.unreadCount || 0
+        );
+      } catch (error) {
+        console.error(
+          "Fetch notification count error:",
+          error
+        );
+
+        setUnreadCount(0);
+      }
+    };
+
+    fetchUnreadNotifications();
+  }, [user, location.pathname]);
+
+  /* =====================================================
+      LOGOUT
+  ===================================================== */
 
   const handleLogout = () => {
     logout();
     setMobileOpen(false);
+    setUnreadCount(0);
     navigate("/login");
   };
 
-  const closeMobile = () => setMobileOpen(false);
+  const closeMobile = () =>
+    setMobileOpen(false);
 
   return (
     <header className="sticky top-0 z-50 bg-[#F5F3EA]/95 backdrop-blur-md border-b border-[#173F2B]/10">
@@ -166,7 +224,10 @@ const Navbar = () => {
                 }
               `}
             >
-              <Bookmark size={17} strokeWidth={1.8} />
+              <Bookmark
+                size={17}
+                strokeWidth={1.8}
+              />
 
               {isActive("/saved-rooms") && (
                 <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#E6B84A]" />
@@ -189,12 +250,77 @@ const Navbar = () => {
                 }
               `}
             >
-              <Bell size={17} strokeWidth={1.8} />
+              <div className="relative">
+
+                <Bell
+                  size={17}
+                  strokeWidth={1.8}
+                />
+
+                {/* Unread Badge */}
+
+                {unreadCount > 0 && (
+                  <span
+                    className="
+                      absolute
+                      -right-2
+                      -top-2
+                      flex
+                      h-3.5
+                      min-w-3.5
+                      items-center
+                      justify-center
+                      rounded-full
+                      bg-[#C96B45]
+                      px-1
+                      text-[7px]
+                      font-bold
+                      leading-none
+                      text-white
+                      ring-2
+                      ring-[#F5F3EA]
+                    "
+                  >
+                    {unreadCount > 9
+                      ? "9+"
+                      : unreadCount}
+                  </span>
+                )}
+
+              </div>
 
               {isActive("/notifications") && (
                 <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#E6B84A]" />
               )}
             </Link>
+
+            {/* Admin Reports */}
+
+            {isAdmin && (
+              <Link
+                to="/admin/reports"
+                title="Reports"
+                className={`
+                  relative w-10 h-10
+                  flex items-center justify-center
+                  transition-colors
+                  ${
+                    isActive("/admin/reports")
+                      ? "text-[#173F2B]"
+                      : "text-[#747872] hover:text-[#173F2B]"
+                  }
+                `}
+              >
+                <ShieldAlert
+                  size={17}
+                  strokeWidth={1.8}
+                />
+
+                {isActive("/admin/reports") && (
+                  <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-[#E6B84A]" />
+                )}
+              </Link>
+            )}
 
             <div className="w-px h-6 bg-[#173F2B]/10 mx-3" />
 
@@ -246,7 +372,10 @@ const Navbar = () => {
                 transition-colors
               "
             >
-              <LogOut size={16} strokeWidth={1.8} />
+              <LogOut
+                size={16}
+                strokeWidth={1.8}
+              />
             </button>
           </div>
 
@@ -256,7 +385,9 @@ const Navbar = () => {
 
           <button
             type="button"
-            onClick={() => setMobileOpen((prev) => !prev)}
+            onClick={() =>
+              setMobileOpen((prev) => !prev)
+            }
             className="
               lg:hidden
               w-10 h-10
@@ -269,9 +400,15 @@ const Navbar = () => {
             aria-label="Toggle menu"
           >
             {mobileOpen ? (
-              <X size={20} strokeWidth={1.7} />
+              <X
+                size={20}
+                strokeWidth={1.7}
+              />
             ) : (
-              <Menu size={20} strokeWidth={1.7} />
+              <Menu
+                size={20}
+                strokeWidth={1.7}
+              />
             )}
           </button>
         </div>
@@ -284,10 +421,21 @@ const Navbar = () => {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22 }}
+            initial={{
+              opacity: 0,
+              height: 0,
+            }}
+            animate={{
+              opacity: 1,
+              height: "auto",
+            }}
+            exit={{
+              opacity: 0,
+              height: 0,
+            }}
+            transition={{
+              duration: 0.22,
+            }}
             className="
               lg:hidden
               overflow-hidden
@@ -399,6 +547,8 @@ const Navbar = () => {
                 Your Pluto
               </p>
 
+              {/* Saved Rooms */}
+
               <Link
                 to="/saved-rooms"
                 onClick={closeMobile}
@@ -415,7 +565,10 @@ const Navbar = () => {
                 `}
               >
                 <span className="flex items-center gap-3">
-                  <Bookmark size={16} strokeWidth={1.7} />
+                  <Bookmark
+                    size={16}
+                    strokeWidth={1.7}
+                  />
                   Saved Rooms
                 </span>
 
@@ -423,6 +576,8 @@ const Navbar = () => {
                   <span className="w-1.5 h-1.5 rounded-full bg-[#E6B84A]" />
                 )}
               </Link>
+
+              {/* Notifications */}
 
               <Link
                 to="/notifications"
@@ -440,7 +595,44 @@ const Navbar = () => {
                 `}
               >
                 <span className="flex items-center gap-3">
-                  <Bell size={16} strokeWidth={1.7} />
+
+                  <div className="relative">
+
+                    <Bell
+                      size={16}
+                      strokeWidth={1.7}
+                    />
+
+                    {/* Mobile Unread Badge */}
+
+                    {unreadCount > 0 && (
+                      <span
+                        className="
+                          absolute
+                          -right-2
+                          -top-2
+                          flex
+                          h-3
+                          min-w-3
+                          items-center
+                          justify-center
+                          rounded-full
+                          bg-[#C96B45]
+                          px-1
+                          text-[6px]
+                          font-bold
+                          leading-none
+                          text-white
+                        "
+                      >
+                        {unreadCount > 9
+                          ? "9+"
+                          : unreadCount}
+                      </span>
+                    )}
+
+                  </div>
+
                   Notifications
                 </span>
 
@@ -448,6 +640,40 @@ const Navbar = () => {
                   <span className="w-1.5 h-1.5 rounded-full bg-[#E6B84A]" />
                 )}
               </Link>
+
+              {/* Admin Reports */}
+
+              {isAdmin && (
+                <Link
+                  to="/admin/reports"
+                  onClick={closeMobile}
+                  className={`
+                    flex items-center justify-between
+                    py-3.5
+                    text-sm
+                    transition
+                    ${
+                      isActive("/admin/reports")
+                        ? "text-[#173F2B] font-medium"
+                        : "text-[#747872] hover:text-[#173F2B]"
+                    }
+                  `}
+                >
+                  <span className="flex items-center gap-3">
+                    <ShieldAlert
+                      size={16}
+                      strokeWidth={1.7}
+                    />
+                    Reports
+                  </span>
+
+                  {isActive("/admin/reports") && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#E6B84A]" />
+                  )}
+                </Link>
+              )}
+
+              {/* Profile */}
 
               <Link
                 to="/profile"
@@ -465,7 +691,10 @@ const Navbar = () => {
                 `}
               >
                 <span className="flex items-center gap-3">
-                  <User size={16} strokeWidth={1.7} />
+                  <User
+                    size={16}
+                    strokeWidth={1.7}
+                  />
                   Profile
                 </span>
 
@@ -489,7 +718,10 @@ const Navbar = () => {
                     transition
                   "
                 >
-                  <LogOut size={16} strokeWidth={1.7} />
+                  <LogOut
+                    size={16}
+                    strokeWidth={1.7}
+                  />
                   Logout
                 </button>
               </div>
